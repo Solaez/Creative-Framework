@@ -375,3 +375,186 @@
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
 }
+
+/* Splash screen */
+@keyframes splashFadeIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes splashFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.splash-logo {
+  animation: splashFadeIn 0.6s cubic-bezier(.22,1,.36,1) forwards;
+}
+.splash-exit {
+  animation: splashFadeOut 0.5s ease forwards;
+}
+@keyframes pulseRing {
+  0%   { transform: scale(1); opacity: .6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.pulse-ring {
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  border: 2px solid hsl(var(--primary));
+  animation: pulseRing 1.4s ease-out infinite;
+}
+.pulse-ring:nth-child(2) { animation-delay: .5s; }
+
+/* Hero carousel */
+@keyframes heroPan {
+  from { transform: scale(1.06); }
+  to   { transform: scale(1); }
+}
+.hero-slide {
+  animation: heroPan 8s ease-out forwards;
+}
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero-content {
+  animation: fadeSlideUp 0.55s ease forwards;
+}
+
+/* Horizontal scroll rows */
+.h-scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+}
+.h-scroll::-webkit-scrollbar { height: 4px; }
+.h-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
+
+/* Horizontal app card */
+.h-app-card {
+  min-width: 180px;
+  max-width: 180px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: .875rem;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform .18s, box-shadow .18s, border-color .18s;
+  flex-shrink: 0;
+}
+.h-app-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  border-color: hsl(var(--primary)/.4);
+}
+
+/* Category tile */
+.cat-tile {
+  border-radius: .875rem;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform .18s, box-shadow .18s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 14px;
+  border: 1px solid rgba(255,255,255,.07);
+}
+.cat-tile:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,.35); }
+
+/* Settings panel slide-in */
+@keyframes settingsSlideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes settingsSlideOut {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(100%); opacity: 0; }
+}
+.settings-panel {
+  animation: settingsSlideIn 0.3s cubic-bezier(.22,1,.36,1) forwards;
+}
+
+/* Theme variables */
+.theme-moody {
+  --background: 260 30% 7%;
+  --foreground: 260 20% 90%;
+  --card: 260 25% 12%;
+  --muted: 260 20% 16%;
+  --muted-foreground: 260 15% 52%;
+  --border: 260 20% 18%;
+  --primary: 280 75% 60%;
+  --sidebar-bg: 260 30% 6%;
+}
+.theme-midnight {
+  --background: 220 40% 6%;
+  --foreground: 220 20% 92%;
+  --card: 220 35% 11%;
+  --muted: 220 30% 15%;
+  --muted-foreground: 220 15% 50%;
+  --border: 220 25% 17%;
+  --primary: 210 90% 60%;
+  --sidebar-bg: 220 40% 5%;
+}
+.theme-forest {
+  --background: 150 25% 7%;
+  --foreground: 140 20% 90%;
+  --card: 150 22% 12%;
+  --muted: 150 18% 16%;
+  --muted-foreground: 140 12% 50%;
+  --border: 150 18% 18%;
+  --primary: 145 65% 50%;
+  --sidebar-bg: 150 28% 6%;
+}
+.theme-fire {
+  --background: 15 30% 7%;
+  --foreground: 20 20% 92%;
+  --card: 15 25% 12%;
+  --muted: 15 20% 16%;
+  --muted-foreground: 20 15% 50%;
+  --border: 15 20% 18%;
+  --primary: 20 90% 55%;
+  --sidebar-bg: 15 30% 6%;
+}
+
+/* Section row title */
+.section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Home hero dots */
+.hero-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.3);
+  cursor: pointer;
+  transition: all .2s;
+  border: none;
+}
+.hero-dot.active {
+  background: white;
+  width: 22px;
+  border-radius: 4px;
+}
+
+/* Feature card */
+.feature-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  padding: 20px;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  transition: border-color .18s, transform .18s;
+  cursor: default;
+}
+.feature-card:hover { border-color: hsl(var(--primary)/.4); transform: translateY(-2px); }
