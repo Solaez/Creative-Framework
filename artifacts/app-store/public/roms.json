@@ -1,0 +1,878 @@
+{
+  "consoles": [
+    {
+      "id": "wii",
+      "name": "Nintendo Wii",
+      "shortName": "Wii",
+      "gradient": "linear-gradient(135deg, #e52d6a 0%, #f97316 100%)",
+      "logoText": "Wii",
+      "logoColor": "#e52d6a",
+      "logoFont": "900",
+      "description": "La consola de Nintendo con control por movimiento. Compatible con juegos de Wii y GameCube.",
+      "emulator": "Dolphin",
+      "fileExtensions": [".wbfs", ".iso", ".rvz"],
+      "romCount": 8,
+      "roms": [
+        {
+          "id": "wii-001",
+          "title": "Super Mario Galaxy",
+          "region": "EUR",
+          "size": "4.37 GB",
+          "rating": 5,
+          "year": 2007,
+          "genre": "Plataformas",
+          "players": "1",
+          "description": "Mario viaja por el cosmos saltando entre galaxias y planetas en este épico juego de plataformas en 3D. Con gravedad esférica, controles de movimiento únicos y más de 120 estrellas por recolectar, es uno de los mejores juegos de Wii.",
+          "developer": "Nintendo EAD",
+          "downloadUrl": "https://archive.org/download/wii-mario-galaxy",
+          "coverUrl": "https://www.mobygames.com/images/covers/l/135892-super-mario-galaxy-wii-front-cover.jpg",
+          "screenshots": [
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Super_Mario_Galaxy_-_Nintendo_Wii.jpg/640px-Super_Mario_Galaxy_-_Nintendo_Wii.jpg"
+          ],
+          "videoId": "pAOe4UVZ6Cg",
+          "instructions": [
+            "Descargar el archivo .wbfs o .iso",
+            "Abrir Dolphin Emulator",
+            "Ir a Config > Paths y agregar la carpeta donde guardaste la ROM",
+            "Hacer doble clic en el juego para iniciar"
+          ]
+        },
+        {
+          "id": "wii-002",
+          "title": "Super Mario Galaxy 2",
+          "region": "EUR",
+          "size": "7.16 GB",
+          "rating": 5,
+          "year": 2010,
+          "genre": "Plataformas",
+          "players": "1-2",
+          "description": "La secuela de Mario Galaxy añade a Yoshi, nuevos power-ups y más de 240 estrellas. Considerado por muchos el mejor juego de plataformas de todos los tiempos.",
+          "developer": "Nintendo EAD",
+          "downloadUrl": "https://archive.org/download/wii-mario-galaxy-2",
+          "coverUrl": "https://www.mobygames.com/images/covers/l/220684-super-mario-galaxy-2-wii-front-cover.jpg",
+          "screenshots": [],
+          "videoId": "nBGmvYJnFok",
+          "instructions": [
+            "Descargar el archivo .wbfs o .iso",
+            "Abrir Dolphin Emulator",
+            "Ir a Config > Paths y agregar la carpeta",
+            "Hacer doble clic en el juego"
+          ]
+        },
+        {
+          "id": "wii-003",
+          "title": "The Legend of Zelda: Twilight Princess",
+          "region": "EUR",
+          "size": "4.38 GB",
+          "rating": 5,
+          "year": 2006,
+          "genre": "Aventura / RPG",
+          "players": "1",
+          "description": "Link se embarca en una épica aventura para salvar Hyrule de las tinieblas. Uno de los Zelda más oscuros y aclamados, con dungeons complejos y jefe finales épicos.",
+          "developer": "Nintendo EAD",
+          "downloadUrl": "https://archive.org/download/zelda-twilight-princess-wii",
+          "coverUrl": "https://www.mobygames.com/images/covers/l/103004-the-legend-of-zelda-twilight-princess-wii-front-cover.jpg",
+          "screenshots": [],
+          "videoId": "lx3Qo-OxT64",
+          "instructions": [
+            "Descargar el archivo .wbfs",
+            "Abrir Dolphin Emulator",
+            "Agregar carpeta en Config > Paths",
+            "Iniciar el juego"
+          ]
+        },
+        {
+          "id": "wii-004",
+          "title": "Mario Kart Wii",
+          "region": "EUR",
+          "size": "4.37 GB",
+          "rating": 5,
+          "year": 2008,
+          "genre": "Carreras",
+          "players": "1-4",
+          "description": "El juego de carreras más jugado de Wii. Incluye 32 circuitos, motos, online y el legendario Wiimote volante. Uno de los juegos más vendidos de la historia.",
+          "developer": "Nintendo EAD",
+          "downloadUrl": "https://archive.org/download/mario-kart-wii",
+          "coverUrl": "https://www.mobygames.com/images/covers/l/161547-mario-kart-wii-wii-front-cover.jpg",
+          "screenshots": [],
+          "videoId": "0tSULFjuXV8",
+          "instructions": [
+            "Descargar el archivo .wbfs",
+            "Abrir Dolphin Emulator",
+            "Agregar carpeta en Config > Paths",
+            "En opciones del juego configura el Wiimote"
+          ]
+        },
+        {
+          "id": "wii-005",
+          "title": "New Super Mario Bros. Wii",
+          "region": "EUR",
+          "size": "4.37 GB",
+          "rating": 4,
+          "year": 2009,
+          "genre": "Plataformas",
+          "players": "1-4",
+          "description": "Mario regresa a sus raíces 2D con hasta 4 jugadores simultáneos. Plataformas clásicas renovadas con gráficos HD y power-ups nuevos como el traje de pingüino.",
+          "developer": "Nintendo EAD",
+          "downloadUrl": "https://archive.org/download/new-super-mario-bros-wii",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "FJz6hN_DLWQ",
+          "instructions": [
+            "Descargar el archivo .wbfs",
+            "Abrir Dolphin Emulator",
+            "Agregar carpeta en Config > Paths",
+            "Configura hasta 4 controles en Dolphin"
+          ]
+        },
+        {
+          "id": "wii-006",
+          "title": "Wii Sports",
+          "region": "EUR",
+          "size": "4.37 GB",
+          "rating": 4,
+          "year": 2006,
+          "genre": "Deportes",
+          "players": "1-4",
+          "description": "El pack-in de lanzamiento de Wii. Incluye tenis, béisbol, bolos, golf y boxeo usando los controles de movimiento del Wiimote. El más vendido de la historia.",
+          "developer": "Nintendo EAD",
+          "downloadUrl": "https://archive.org/download/wii-sports",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "TKCGh7GXgWY",
+          "instructions": [
+            "Descargar el archivo .wbfs",
+            "Abrir Dolphin Emulator",
+            "Configurar el Wiimote en opciones del control",
+            "Iniciar el juego"
+          ]
+        },
+        {
+          "id": "wii-007",
+          "title": "Super Smash Bros. Brawl",
+          "region": "EUR",
+          "size": "7.92 GB",
+          "rating": 5,
+          "year": 2008,
+          "genre": "Lucha",
+          "players": "1-4",
+          "description": "El épico juego de lucha con personajes de Nintendo y Sega. Incluye modo aventura The Subspace Emissary con historia y más de 35 personajes jugables.",
+          "developer": "Sora Ltd.",
+          "downloadUrl": "https://archive.org/download/ssbb-wii",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "YMd_iNUEqAA",
+          "instructions": [
+            "Descargar el archivo .wbfs",
+            "Abrir Dolphin Emulator (requiere Dual-Core activado)",
+            "Agregar carpeta en Config > Paths",
+            "Configurar controles GameCube para mejor experiencia"
+          ]
+        },
+        {
+          "id": "wii-008",
+          "title": "Metroid Prime 3: Corruption",
+          "region": "EUR",
+          "size": "4.37 GB",
+          "rating": 4,
+          "year": 2007,
+          "genre": "Acción / FPS",
+          "players": "1",
+          "description": "Samus Aran lucha contra la corrupción de Phaazon en planetas distintos. El mejor uso de los controles de apuntado del Wiimote en un FPS, con atmósfera increíble.",
+          "developer": "Retro Studios",
+          "downloadUrl": "https://archive.org/download/metroid-prime-3",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "4yxMpN9Vpxk",
+          "instructions": [
+            "Descargar el archivo .wbfs",
+            "Abrir Dolphin Emulator",
+            "Agregar carpeta en Config > Paths",
+            "Usar Wiimote emulado para el apuntado"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gamecube",
+      "name": "Nintendo GameCube",
+      "shortName": "GameCube",
+      "gradient": "linear-gradient(135deg, #e52d6a 0%, #f97316 100%)",
+      "logoText": "GAMECUBE",
+      "description": "La consola de sexta generación de Nintendo, hogar de grandes clásicos como Melee y Wind Waker.",
+      "emulator": "Dolphin",
+      "fileExtensions": [".iso", ".gcm", ".rvz"],
+      "romCount": 6,
+      "roms": [
+        {
+          "id": "gc-001",
+          "title": "Super Mario Sunshine",
+          "region": "EUR",
+          "size": "1.35 GB",
+          "rating": 5,
+          "year": 2002,
+          "genre": "Plataformas",
+          "players": "1",
+          "description": "Mario limpia la Isla Delfino con FLUDD, su compañero mochila de agua. Un juego de plataformas único lleno de sol, desafíos y una historia sorprendente para la saga.",
+          "developer": "Nintendo EAD",
+          "downloadUrl": "https://archive.org/download/super-mario-sunshine-gc",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "cSiLFBaNYGM",
+          "instructions": [
+            "Descargar el archivo .iso",
+            "Abrir Dolphin Emulator",
+            "Agregar la carpeta del juego en Config > Paths",
+            "Doble clic para jugar"
+          ]
+        },
+        {
+          "id": "gc-002",
+          "title": "Super Smash Bros. Melee",
+          "region": "EUR",
+          "size": "1.35 GB",
+          "rating": 5,
+          "year": 2001,
+          "genre": "Lucha",
+          "players": "1-4",
+          "description": "El referente de los juegos de lucha con personajes Nintendo. Melee tiene la comunidad competitiva más activa aún hoy, con mecánicas de alto nivel como el wavedash.",
+          "developer": "HAL Laboratory",
+          "downloadUrl": "https://archive.org/download/ssb-melee-gc",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "8s-Rl3t_EbA",
+          "instructions": [
+            "Descargar el archivo .iso",
+            "Abrir Dolphin Emulator",
+            "Recomendado: usar mando GameCube con adaptador",
+            "Agregar carpeta y doble clic para jugar"
+          ]
+        },
+        {
+          "id": "gc-003",
+          "title": "The Legend of Zelda: Wind Waker",
+          "region": "EUR",
+          "size": "1.35 GB",
+          "rating": 5,
+          "year": 2003,
+          "genre": "Aventura",
+          "players": "1",
+          "description": "Link navega por un océano infinito en este Zelda de cel-shading revolucionario. Visual y artísticamente atemporal, con exploración naval, dungeons creativos y una historia emotiva.",
+          "developer": "Nintendo EAD",
+          "downloadUrl": "https://archive.org/download/zelda-windwaker-gc",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "YGOGVJzf9nY",
+          "instructions": [
+            "Descargar el archivo .iso",
+            "Abrir Dolphin Emulator",
+            "Activar Widescreen Hack en opciones gráficas",
+            "Doble clic para jugar"
+          ]
+        },
+        {
+          "id": "gc-004",
+          "title": "Luigi's Mansion",
+          "region": "EUR",
+          "size": "1.35 GB",
+          "rating": 4,
+          "year": 2001,
+          "genre": "Aventura / Terror",
+          "players": "1",
+          "description": "Luigi debe rescatar a Mario de una mansión embrujada usando una aspiradora para atrapar fantasmas. Oscuro, divertido y con gráficos impresionantes para la época.",
+          "developer": "Nintendo EAD",
+          "downloadUrl": "https://archive.org/download/luigis-mansion-gc",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "f0bCyqSBIrI",
+          "instructions": [
+            "Descargar el archivo .iso",
+            "Abrir Dolphin Emulator",
+            "Agregar carpeta en Config > Paths",
+            "Doble clic para jugar"
+          ]
+        },
+        {
+          "id": "gc-005",
+          "title": "F-Zero GX",
+          "region": "EUR",
+          "size": "1.35 GB",
+          "rating": 4,
+          "year": 2003,
+          "genre": "Carreras",
+          "players": "1",
+          "description": "Las carreras futuristas más rápidas y difíciles del GameCube, desarrolladas por Sega. Circuitos imposibles, velocidades extremas y una curva de dificultad brutal.",
+          "developer": "Amusement Vision / Sega",
+          "downloadUrl": "https://archive.org/download/fzero-gx-gc",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "rvfv1OiQM0U",
+          "instructions": [
+            "Descargar el archivo .iso",
+            "Abrir Dolphin Emulator",
+            "Configurar el mando GameCube",
+            "Doble clic para jugar"
+          ]
+        },
+        {
+          "id": "gc-006",
+          "title": "Pikmin 2",
+          "region": "EUR",
+          "size": "1.35 GB",
+          "rating": 5,
+          "year": 2004,
+          "genre": "Estrategia",
+          "players": "1-2",
+          "description": "Olimar y Louie lideran ejércitos de Pikmin para recuperar tesoros del planeta. Sin límite de tiempo, más criaturas y cuevas llenas de peligros. El mejor Pikmin.",
+          "developer": "Nintendo EAD",
+          "downloadUrl": "https://archive.org/download/pikmin-2-gc",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "nRDy7JRRpgE",
+          "instructions": [
+            "Descargar el archivo .iso",
+            "Abrir Dolphin Emulator",
+            "Agregar carpeta en Config > Paths",
+            "Doble clic para jugar"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "snes",
+      "name": "Nintendo Super Nintendo",
+      "shortName": "SNES",
+      "gradient": "linear-gradient(135deg, #e52d6a 0%, #f97316 100%)",
+      "logoText": "SUPER NINTENDO",
+      "description": "La consola 16-bit que definió una generación. Home de Final Fantasy, Donkey Kong Country y muchos más.",
+      "emulator": "RetroArch / ZSNES",
+      "fileExtensions": [".smc", ".sfc", ".zip"],
+      "romCount": 6,
+      "roms": [
+        {
+          "id": "snes-001",
+          "title": "Super Mario World",
+          "region": "EUR",
+          "size": "512 KB",
+          "rating": 5,
+          "year": 1990,
+          "genre": "Plataformas",
+          "players": "1-2",
+          "description": "El juego de lanzamiento de la SNES que introdujo a Yoshi. Con 96 salidas secretas, el Mundo Especial y los Mundos de las Estrellas, es el Mario 2D más completo y rejugable.",
+          "developer": "Nintendo EAD",
+          "downloadUrl": "https://archive.org/download/snes-super-mario-world",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "UqmAlsyIJBE",
+          "instructions": [
+            "Descargar el archivo .smc",
+            "Abrir RetroArch y cargar el core SNES9x",
+            "Cargar el archivo ROM",
+            "Configurar mando y jugar"
+          ]
+        },
+        {
+          "id": "snes-002",
+          "title": "Donkey Kong Country",
+          "region": "EUR",
+          "size": "3 MB",
+          "rating": 5,
+          "year": 1994,
+          "genre": "Plataformas",
+          "players": "1-2",
+          "description": "Donkey Kong y Diddy Kong recuperan los plátanos robados por el Rey K. Rool. Gráficos pre-renderizados revolucionarios, música icónica de David Wise y niveles creativos.",
+          "developer": "Rare",
+          "downloadUrl": "https://archive.org/download/snes-dkc",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "B6W7_YKJOgE",
+          "instructions": [
+            "Descargar el archivo .smc",
+            "Abrir RetroArch con core SNES9x",
+            "Cargar la ROM",
+            "Configurar mando y jugar"
+          ]
+        },
+        {
+          "id": "snes-003",
+          "title": "Final Fantasy VI",
+          "region": "EUR",
+          "size": "3 MB",
+          "rating": 5,
+          "year": 1994,
+          "genre": "RPG",
+          "players": "1",
+          "description": "La obra maestra de Square para SNES. Con 14 personajes jugables, una historia épica sobre la magia y el apocalipsis, y el villano más icónico de los RPG: Kefka Palazzo.",
+          "developer": "Square",
+          "downloadUrl": "https://archive.org/download/snes-ff6",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "xTaOF5JJvQA",
+          "instructions": [
+            "Descargar el archivo .smc",
+            "Abrir RetroArch con core SNES9x",
+            "Cargar la ROM",
+            "Configurar guardados en opciones"
+          ]
+        },
+        {
+          "id": "snes-004",
+          "title": "The Legend of Zelda: A Link to the Past",
+          "region": "EUR",
+          "size": "1 MB",
+          "rating": 5,
+          "year": 1991,
+          "genre": "Aventura",
+          "players": "1",
+          "description": "Considerado por muchos el mejor Zelda. Link explora el mundo de la Luz y el Mundo Oscuro para derrotar a Ganon. Dungeons perfectamente diseñados y exploración libre.",
+          "developer": "Nintendo EAD",
+          "downloadUrl": "https://archive.org/download/snes-zelda-alttp",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "3T9E6MsKFbg",
+          "instructions": [
+            "Descargar el archivo .smc",
+            "Abrir RetroArch con core SNES9x",
+            "Cargar la ROM",
+            "Jugar"
+          ]
+        },
+        {
+          "id": "snes-005",
+          "title": "Chrono Trigger",
+          "region": "EUR",
+          "size": "4 MB",
+          "rating": 5,
+          "year": 1995,
+          "genre": "RPG",
+          "players": "1",
+          "description": "El RPG definitivo de SNES creado por el Dream Team de Squaresoft. Viajes en el tiempo, 13 finales diferentes, combates ATB sin transiciones y música de Yasunori Mitsuda.",
+          "developer": "Square",
+          "downloadUrl": "https://archive.org/download/snes-chrono-trigger",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "0QJ5xM0UJyg",
+          "instructions": [
+            "Descargar el archivo .smc",
+            "Abrir RetroArch con core SNES9x",
+            "Cargar la ROM",
+            "Configurar guardados y jugar"
+          ]
+        },
+        {
+          "id": "snes-006",
+          "title": "Super Metroid",
+          "region": "EUR",
+          "size": "3 MB",
+          "rating": 5,
+          "year": 1994,
+          "genre": "Acción / Aventura",
+          "players": "1",
+          "description": "Samus regresa a Zebes para rescatar a la última Metroid. El juego que definió el género Metroidvania. Atmósfera opresiva, música memorable y exploración satisfactoria.",
+          "developer": "Nintendo R&D1",
+          "downloadUrl": "https://archive.org/download/snes-super-metroid",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "E0JQRV7l7oE",
+          "instructions": [
+            "Descargar el archivo .smc",
+            "Abrir RetroArch con core SNES9x",
+            "Cargar la ROM",
+            "Jugar"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nes",
+      "name": "Nintendo NES",
+      "shortName": "NES",
+      "gradient": "linear-gradient(135deg, #e52d6a 0%, #f97316 100%)",
+      "logoText": "Nintendo",
+      "description": "La consola que salvó la industria del videojuego en los 80. Home de los primeros Mario, Zelda y Metroid.",
+      "emulator": "RetroArch / Nestopia",
+      "fileExtensions": [".nes", ".zip"],
+      "romCount": 5,
+      "roms": [
+        {
+          "id": "nes-001",
+          "title": "Super Mario Bros.",
+          "region": "EUR",
+          "size": "31 KB",
+          "rating": 5,
+          "year": 1985,
+          "genre": "Plataformas",
+          "players": "1-2",
+          "description": "El juego que lo empezó todo. Mario corre, salta y aplasta Goombas para salvar a la Princesa Peach del Rey Koopa. Simple, adictivo y perfecto. El más influyente de la historia.",
+          "developer": "Nintendo R&D4",
+          "downloadUrl": "https://archive.org/download/nes-super-mario-bros",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "7qirrV8w5P4",
+          "instructions": [
+            "Descargar el archivo .nes",
+            "Abrir RetroArch con core NES / FCEUmm",
+            "Cargar la ROM",
+            "Configurar mando y jugar"
+          ]
+        },
+        {
+          "id": "nes-002",
+          "title": "The Legend of Zelda",
+          "region": "EUR",
+          "size": "128 KB",
+          "rating": 5,
+          "year": 1986,
+          "genre": "Aventura",
+          "players": "1",
+          "description": "El primer Zelda. Link explora un mundo abierto en busca de los 8 fragmentos de la Trifuerza para salvar a Zelda. El pionero del mundo abierto en consola doméstica.",
+          "developer": "Nintendo R&D4",
+          "downloadUrl": "https://archive.org/download/nes-zelda-1",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "6g2vk8Gudqs",
+          "instructions": [
+            "Descargar el archivo .nes",
+            "Abrir RetroArch con core FCEUmm",
+            "Cargar la ROM",
+            "Jugar"
+          ]
+        },
+        {
+          "id": "nes-003",
+          "title": "Mega Man 2",
+          "region": "EUR",
+          "size": "256 KB",
+          "rating": 5,
+          "year": 1988,
+          "genre": "Plataformas / Acción",
+          "players": "1",
+          "description": "El mejor Mega Man para NES. 8 Robot Masters con debilidades entre sí, música icónica y la dificultad perfecta. Sentó las bases del género de acción en plataformas.",
+          "developer": "Capcom",
+          "downloadUrl": "https://archive.org/download/nes-megaman-2",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "aCvBOR8xVqs",
+          "instructions": [
+            "Descargar el archivo .nes",
+            "Abrir RetroArch con core FCEUmm",
+            "Cargar la ROM",
+            "Configurar mando y jugar"
+          ]
+        },
+        {
+          "id": "nes-004",
+          "title": "Contra",
+          "region": "EUR",
+          "size": "256 KB",
+          "rating": 4,
+          "year": 1988,
+          "genre": "Acción / Run & Gun",
+          "players": "1-2",
+          "description": "El clásico run-and-gun de Konami. Bill y Lance combaten hordas de alienígenas en modo cooperativo. El origen del famoso Código Konami (↑↑↓↓←→←→BA).",
+          "developer": "Konami",
+          "downloadUrl": "https://archive.org/download/nes-contra",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "J-O0k5TFmvE",
+          "instructions": [
+            "Descargar el archivo .nes",
+            "Abrir RetroArch con core FCEUmm",
+            "Cargar la ROM",
+            "Para 2 jugadores configurar 2 mandos"
+          ]
+        },
+        {
+          "id": "nes-005",
+          "title": "Castlevania",
+          "region": "EUR",
+          "size": "128 KB",
+          "rating": 5,
+          "year": 1986,
+          "genre": "Plataformas / Acción",
+          "players": "1",
+          "description": "Simon Belmont usa su látigo para combatir monstruos en el castillo de Drácula. Uno de los juegos más influyentes de la historia, con música mítica y atmósfera de terror gótico.",
+          "developer": "Konami",
+          "downloadUrl": "https://archive.org/download/nes-castlevania",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "xVrp6RBpVzQ",
+          "instructions": [
+            "Descargar el archivo .nes",
+            "Abrir RetroArch con core FCEUmm",
+            "Cargar la ROM",
+            "Jugar"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gba",
+      "name": "Nintendo GBA",
+      "shortName": "GBA",
+      "gradient": "linear-gradient(135deg, #e52d6a 0%, #f97316 100%)",
+      "logoText": "GAME BOY ADVANCE",
+      "description": "La portátil de 32 bits de Nintendo. Una librería enorme con ports de SNES y exclusivos increíbles.",
+      "emulator": "mGBA / RetroArch",
+      "fileExtensions": [".gba", ".zip"],
+      "romCount": 6,
+      "roms": [
+        {
+          "id": "gba-001",
+          "title": "Pokémon FireRed",
+          "region": "EUR",
+          "size": "16 MB",
+          "rating": 5,
+          "year": 2004,
+          "genre": "RPG",
+          "players": "1",
+          "description": "El remake del Pokémon Rojo original para GBA. Recorre Kanto capturando los 151 Pokémon originales con mecánicas modernas, gráficos mejorados y nuevas islas post-game.",
+          "developer": "Game Freak",
+          "downloadUrl": "https://archive.org/download/gba-pokemon-firered",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "NsyiGtVLWoM",
+          "instructions": [
+            "Descargar el archivo .gba",
+            "Abrir mGBA",
+            "Ir a File > Open ROM",
+            "Seleccionar el archivo y jugar"
+          ]
+        },
+        {
+          "id": "gba-002",
+          "title": "Pokémon Emerald",
+          "region": "EUR",
+          "size": "16 MB",
+          "rating": 5,
+          "year": 2005,
+          "genre": "RPG",
+          "players": "1",
+          "description": "La versión definitiva de la tercera generación con Rayquaza como legendario. Incluye el Frontier de Batalla, ambas sagas del Equipo Magma y Aqua y postgame extenso.",
+          "developer": "Game Freak",
+          "downloadUrl": "https://archive.org/download/gba-pokemon-emerald",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "YDI_yN5EXOQ",
+          "instructions": [
+            "Descargar el archivo .gba",
+            "Abrir mGBA",
+            "File > Open ROM",
+            "Jugar"
+          ]
+        },
+        {
+          "id": "gba-003",
+          "title": "The Legend of Zelda: The Minish Cap",
+          "region": "EUR",
+          "size": "8 MB",
+          "rating": 5,
+          "year": 2004,
+          "genre": "Aventura",
+          "players": "1",
+          "description": "Link puede encogerse al tamaño de los Minish (Picori) con el gorro mágico Ezlo. Un Zelda 2D precioso desarrollado por Capcom con dungeons creativos y exploración encantadora.",
+          "developer": "Capcom",
+          "downloadUrl": "https://archive.org/download/gba-zelda-minish-cap",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "BmGHBR3HkpA",
+          "instructions": [
+            "Descargar el archivo .gba",
+            "Abrir mGBA",
+            "File > Open ROM",
+            "Jugar"
+          ]
+        },
+        {
+          "id": "gba-004",
+          "title": "Metroid Fusion",
+          "region": "EUR",
+          "size": "8 MB",
+          "rating": 5,
+          "year": 2002,
+          "genre": "Acción / Aventura",
+          "players": "1",
+          "description": "Samus es infectada por el X-Parasyte y debe explorar la estación espacial BSL perseguida por SA-X. Narrativa tensa y atmosférica con las mejores mecánicas de la saga en 2D.",
+          "developer": "Nintendo R&D1",
+          "downloadUrl": "https://archive.org/download/gba-metroid-fusion",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "KvNO_gIADFI",
+          "instructions": [
+            "Descargar el archivo .gba",
+            "Abrir mGBA",
+            "File > Open ROM",
+            "Jugar"
+          ]
+        },
+        {
+          "id": "gba-005",
+          "title": "Fire Emblem",
+          "region": "EUR",
+          "size": "16 MB",
+          "rating": 5,
+          "year": 2003,
+          "genre": "Estrategia / RPG",
+          "players": "1",
+          "description": "El primer Fire Emblem lanzado fuera de Japón. Combate por turnos con permadeath: si un personaje muere, se pierde para siempre. Narrativa profunda y combate táctico adictivo.",
+          "developer": "Intelligent Systems",
+          "downloadUrl": "https://archive.org/download/gba-fire-emblem",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "N3uc6MuJRCo",
+          "instructions": [
+            "Descargar el archivo .gba",
+            "Abrir mGBA",
+            "File > Open ROM",
+            "Jugar — cuidado con el permadeath"
+          ]
+        },
+        {
+          "id": "gba-006",
+          "title": "Castlevania: Aria of Sorrow",
+          "region": "EUR",
+          "size": "8 MB",
+          "rating": 5,
+          "year": 2003,
+          "genre": "Acción / Aventura",
+          "players": "1",
+          "description": "Soma Cruz absorbe las almas de los enemigos para obtener sus poderes. El mejor Castlevania de GBA con el sistema de almas más creativo de la saga y un final impactante.",
+          "developer": "Konami",
+          "downloadUrl": "https://archive.org/download/gba-castlevania-aos",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "pBOKOuGVrg4",
+          "instructions": [
+            "Descargar el archivo .gba",
+            "Abrir mGBA",
+            "File > Open ROM",
+            "Jugar"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ps1",
+      "name": "PlayStation 1",
+      "shortName": "PS1",
+      "gradient": "linear-gradient(135deg, #e52d6a 0%, #f97316 100%)",
+      "logoText": "PlayStation",
+      "description": "La primera consola de Sony que revolucionó los videojuegos 3D. Final Fantasy VII, Metal Gear Solid y mucho más.",
+      "emulator": "DuckStation / ePSXe",
+      "fileExtensions": [".bin", ".iso", ".cue", ".chd"],
+      "romCount": 5,
+      "roms": [
+        {
+          "id": "ps1-001",
+          "title": "Final Fantasy VII",
+          "region": "EUR",
+          "size": "1.3 GB",
+          "rating": 5,
+          "year": 1997,
+          "genre": "RPG",
+          "players": "1",
+          "description": "Cloud Strife y AVALANCHE luchan contra la megacorporación Shinra y el misterioso Sephiroth. El JRPG que llevó el género al mainstream mundial, con una historia y música legendarias.",
+          "developer": "Square",
+          "downloadUrl": "https://archive.org/download/ps1-ff7",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "J8JH9GnLiRU",
+          "instructions": [
+            "Descargar los archivos .bin/.cue (3 discos)",
+            "Abrir DuckStation",
+            "Cargar el primer disco",
+            "Al cambiar de disco usar la opción Change Disc"
+          ]
+        },
+        {
+          "id": "ps1-002",
+          "title": "Metal Gear Solid",
+          "region": "EUR",
+          "size": "1.1 GB",
+          "rating": 5,
+          "year": 1998,
+          "genre": "Acción / Sigilo",
+          "players": "1",
+          "description": "Snake se infiltra en Shadow Moses para detener a FOXHOUND. La obra que definió el stealth-action moderno, con boss fights innovadoras, cinemáticas épicas y giros de guión memorables.",
+          "developer": "Konami",
+          "downloadUrl": "https://archive.org/download/ps1-mgs",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "0AJpj5DHNM0",
+          "instructions": [
+            "Descargar los archivos .bin/.cue",
+            "Abrir DuckStation",
+            "File > Open > seleccionar el archivo .cue",
+            "Jugar"
+          ]
+        },
+        {
+          "id": "ps1-003",
+          "title": "Crash Bandicoot 2",
+          "region": "EUR",
+          "size": "500 MB",
+          "rating": 4,
+          "year": 1997,
+          "genre": "Plataformas",
+          "players": "1",
+          "description": "Crash recolecta cristales bajo las órdenes del Dr. Neo Cortex. Niveles con mecánicas variadas, el jetpack, el oso polar y mucha dificultad. El mejor de la trilogía original.",
+          "developer": "Naughty Dog",
+          "downloadUrl": "https://archive.org/download/ps1-crash-2",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "OKBGDRVMSa8",
+          "instructions": [
+            "Descargar el archivo .bin/.cue o .chd",
+            "Abrir DuckStation",
+            "Cargar el archivo",
+            "Jugar"
+          ]
+        },
+        {
+          "id": "ps1-004",
+          "title": "Castlevania: Symphony of the Night",
+          "region": "EUR",
+          "size": "400 MB",
+          "rating": 5,
+          "year": 1997,
+          "genre": "Acción / Aventura",
+          "players": "1",
+          "description": "Alucard explora el castillo de Drácula invertido en la obra maestra que definió el Metroidvania. Sistema de RPG, centenares de ítems, el nivel inverso y 'What is a man?' memorable.",
+          "developer": "Konami",
+          "downloadUrl": "https://archive.org/download/ps1-castlevania-sotn",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "eAFqHFpN5no",
+          "instructions": [
+            "Descargar el archivo .bin/.cue",
+            "Abrir DuckStation",
+            "Cargar el archivo",
+            "Jugar"
+          ]
+        },
+        {
+          "id": "ps1-005",
+          "title": "Tekken 3",
+          "region": "EUR",
+          "size": "500 MB",
+          "rating": 5,
+          "year": 1998,
+          "genre": "Lucha",
+          "players": "1-2",
+          "description": "El mejor juego de lucha de la PS1. Con Jin Kazama como protagonista, el sistema de combate más fluido y técnico del género en esa era, y modos de juego muy completos.",
+          "developer": "Namco",
+          "downloadUrl": "https://archive.org/download/ps1-tekken-3",
+          "coverUrl": "",
+          "screenshots": [],
+          "videoId": "nW0mvqGKBkU",
+          "instructions": [
+            "Descargar el archivo .bin/.cue",
+            "Abrir DuckStation",
+            "Cargar el archivo",
+            "Para 2 jugadores configurar 2 mandos"
+          ]
+        }
+      ]
+    }
+  ]
+}
