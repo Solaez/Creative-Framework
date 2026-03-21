@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "App Store"
+version = "1.0.0"
+id = "artifacts/app-store"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19851
+
+[services.development]
+run = "pnpm --filter @workspace/app-store run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/app-store", "run", "build" ]
+publicDir = "artifacts/app-store/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19851"
+BASE_PATH = "/"
