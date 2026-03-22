@@ -9,6 +9,16 @@ interface RomsData { consoles: Console[] }
 interface AppsData { apps: App[] }
 type Theme = 'default' | 'moody' | 'midnight' | 'forest' | 'fire';
 type Language = 'es' | 'en';
+interface DownloadRecord { id: string; name: string; icon: string; type: 'app'|'rom'; category: string; size: string; date: string; }
+const DOWNLOAD_HISTORY_KEY = 'appstore_download_history';
+function loadDownloadHistory(): DownloadRecord[] {
+  try { return JSON.parse(localStorage.getItem(DOWNLOAD_HISTORY_KEY)||'[]'); } catch { return []; }
+}
+function saveDownloadRecord(record: DownloadRecord) {
+  const history = loadDownloadHistory();
+  const updated = [record, ...history.filter(r=>r.id!==record.id)].slice(0,100);
+  localStorage.setItem(DOWNLOAD_HISTORY_KEY, JSON.stringify(updated));
+}
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 function Icon({ name, size = 16 }: { name: string; size?: number }) {
@@ -282,8 +292,8 @@ function SettingsPanel({ theme, onTheme, lang, onLang, onClose, onAdmin }: Setti
 }
 
 // ─── Titlebar ────────────────────────────────────────────────────────────────
-function Titlebar({ online, onToggle, search, onSearch, onSettings }:
-  { online:boolean; onToggle:()=>void; search:string; onSearch:(v:string)=>void; onSettings:()=>void }) {
+function Titlebar({ online, onToggle, search, onSearch, onSettings, downloadCount, onOpenDownloads }:
+  { online:boolean; onToggle:()=>void; search:string; onSearch:(v:string)=>void; onSettings:()=>void; downloadCount:number; onOpenDownloads:()=>void }) {
   return (
     <div style={{ background:'hsl(230 28% 9%)',borderBottom:'1px solid hsl(var(--border))',display:'flex',alignItems:'center',height:44,flexShrink:0 }}>
       <div style={{ display:'flex',alignItems:'center',gap:6,padding:'0 14px',flexShrink:0 }}>
@@ -305,9 +315,9 @@ function Titlebar({ online, onToggle, search, onSearch, onSettings }:
       <div style={{ flex:1,textAlign:'center',fontSize:12,color:'hsl(var(--muted-foreground))' }}>AppStore XD v2.0</div>
       <div style={{ display:'flex',alignItems:'center',gap:8,padding:'0 14px' }}>
         <Clock/>
-        <button className="btn-icon" onClick={()=>showToast('Sin actualizaciones','info')} style={{ position:'relative' }}>
+        <button className="btn-icon" onClick={onOpenDownloads} style={{ position:'relative' }} title="Ver historial de descargas">
           <Icon name="download" size={18}/>
-          <span style={{ position:'absolute',top:-4,right:-4,background:'hsl(var(--primary))',color:'white',borderRadius:'50%',width:14,height:14,fontSize:9,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700 }}>0</span>
+          {downloadCount>0&&<span style={{ position:'absolute',top:-4,right:-4,background:'hsl(var(--primary))',color:'white',borderRadius:'50%',width:16,height:16,fontSize:9,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700 }}>{downloadCount>99?'99+':downloadCount}</span>}
         </button>
         <button className="btn-icon" onClick={()=>showToast('Sin notificaciones','info')}><Icon name="bell" size={18}/></button>
         {/* Profile button → opens settings */}
@@ -324,7 +334,7 @@ function Titlebar({ online, onToggle, search, onSearch, onSettings }:
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 const CAT_ICONS: Record<string,string> = {
-  Inicio:'home', Todos:'grid', Actualizaciones:'refresh', Programas:'monitor', Drivers:'cpu',
+  Inicio:'home', Todos:'grid', Descargas:'download', Programas:'monitor', Drivers:'cpu',
   Juegos:'gamepad', Desarrollos:'code', Diseño:'pen', Emuladores:'disc', 'Juegos Roms':'folder', Proyectos:'wrench',
 };
 function Sidebar({ active, onSelect }: { active:string; onSelect:(c:string)=>void }) {
@@ -336,7 +346,7 @@ function Sidebar({ active, onSelect }: { active:string; onSelect:(c:string)=>voi
       </div>
       <div style={{ height:1,background:'hsl(var(--border))',margin:'2px 4px 10px' }}/>
       <div style={{ fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.08em',color:'hsl(var(--muted-foreground))',padding:'4px 10px 4px' }}>Apps</div>
-      {['Todos','Actualizaciones'].map(cat=><SideItem key={cat} cat={cat} active={active} onSelect={onSelect}/>)}
+      {['Todos','Descargas'].map(cat=><SideItem key={cat} cat={cat} active={active} onSelect={onSelect}/>)}
       <div style={{ fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.08em',color:'hsl(var(--muted-foreground))',padding:'12px 10px 4px' }}>Categorías</div>
       {['Programas','Drivers','Juegos','Desarrollos','Diseño','Emuladores','Juegos Roms','Proyectos'].map(cat=><SideItem key={cat} cat={cat} active={active} onSelect={onSelect}/>)}
     </div>
@@ -722,12 +732,12 @@ function GamingDetailLayout({ onBack, backLabel, coverEmoji, coverBg, title, gen
 }
 
 // ─── App Detail ───────────────────────────────────────────────────────────────
-function AppDetailView({ app, onBack }: { app:App; onBack:()=>void }) {
+function AppDetailView({ app, onBack, onDownloadSaved }: { app:App; onBack:()=>void; onDownloadSaved?:()=>void }) {
   const [progress, setProgress] = useState(0);
   const [downloading, setDownloading] = useState(false);
   function handleDownload() {
     setDownloading(true); let p=0;
-    const iv = setInterval(()=>{ p+=Math.random()*18; if(p>=100){ p=100; clearInterval(iv); setTimeout(()=>{ setDownloading(false); setProgress(0); showToast(`${app.name} descargado`,'success'); window.open(app.downloadUrl,'_blank'); },500); } setProgress(Math.min(p,100)); },180);
+    const iv = setInterval(()=>{ p+=Math.random()*18; if(p>=100){ p=100; clearInterval(iv); setTimeout(()=>{ setDownloading(false); setProgress(0); showToast(`${app.name} descargado`,'success'); saveDownloadRecord({ id:`app-${app.id}-${Date.now()}`, name:app.name, icon:app.icon, type:'app', category:app.category, size:app.size, date:new Date().toISOString() }); onDownloadSaved?.(); window.open(app.downloadUrl,'_blank'); },500); } setProgress(Math.min(p,100)); },180);
   }
   const mediaItems: MediaItem[] = [{ type:'cover',label:'Portada',emoji:app.icon },...(app.videoId?[{type:'video' as const,label:'Preview',videoId:app.videoId}]:[]),...app.screenshots.map((src,i)=>({type:'screen' as const,label:`Captura ${i+1}`,src})),{ type:'cover',label:'Vista adicional',emoji:app.icon }];
   const extraPanel = (
@@ -747,7 +757,7 @@ function AppDetailView({ app, onBack }: { app:App; onBack:()=>void }) {
 }
 
 // ─── ROM Detail ───────────────────────────────────────────────────────────────
-function RomDetailView({ rom, console: c, onBack }: { rom:Rom; console:Console; onBack:()=>void }) {
+function RomDetailView({ rom, console: c, onBack, onDownloadSaved }: { rom:Rom; console:Console; onBack:()=>void; onDownloadSaved?:()=>void }) {
   const [progress, setProgress] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
@@ -755,7 +765,7 @@ function RomDetailView({ rom, console: c, onBack }: { rom:Rom; console:Console; 
   const accentColor = '#e8692a';
   function handleDownload() {
     setDownloading(true); let p=0;
-    const iv = setInterval(()=>{ p+=Math.random()*12; if(p>=100){ p=100; clearInterval(iv); setTimeout(()=>{ setDownloading(false); setProgress(0); setDownloaded(true); showToast(`${rom.title} descargado`,'success'); window.open(rom.downloadUrl,'_blank'); },600); } setProgress(Math.min(p,100)); },200);
+    const iv = setInterval(()=>{ p+=Math.random()*12; if(p>=100){ p=100; clearInterval(iv); setTimeout(()=>{ setDownloading(false); setProgress(0); setDownloaded(true); showToast(`${rom.title} descargado`,'success'); saveDownloadRecord({ id:`rom-${rom.id}-${Date.now()}`, name:rom.title, icon:'🎮', type:'rom', category:c.name, size:rom.size, date:new Date().toISOString() }); onDownloadSaved?.(); window.open(rom.downloadUrl,'_blank'); },600); } setProgress(Math.min(p,100)); },200);
   }
   function handleSelectFile() {
     const inp=document.createElement('input'); inp.type='file'; inp.accept=c.fileExtensions.join(',');
@@ -844,13 +854,13 @@ function RomListView({ console: c, onSelectRom, onBack }: { console:Console; onS
 
 // ─── Juegos Roms Section ──────────────────────────────────────────────────────
 type RomView = { type:'list' }|{ type:'roms'; console:Console }|{ type:'rom'; console:Console; rom:Rom };
-function JuegosRomsSection({ customConsoles }: { customConsoles: Console[] }) {
+function JuegosRomsSection({ customConsoles, onDownloadSaved }: { customConsoles: Console[]; onDownloadSaved?:()=>void }) {
   const [romsData, setRomsData] = useState<RomsData|null>(null);
   const [view, setView] = useState<RomView>({ type:'list' });
   useEffect(()=>{ fetch('/roms.json').then(r=>r.json()).then(setRomsData).catch(()=>showToast('Error cargando ROMs','error')); },[]);
   if(!romsData) return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'60%',color:'hsl(var(--muted-foreground))' }}>Cargando consolas...</div>;
   const allConsoles = [...romsData.consoles, ...customConsoles];
-  if(view.type==='rom') return <RomDetailView rom={view.rom} console={view.console} onBack={()=>setView({type:'roms',console:view.console})}/>;
+  if(view.type==='rom') return <RomDetailView rom={view.rom} console={view.console} onBack={()=>setView({type:'roms',console:view.console})} onDownloadSaved={onDownloadSaved}/>;
   if(view.type==='roms') return <RomListView console={view.console} onSelectRom={rom=>setView({type:'rom',console:view.console,rom})} onBack={()=>setView({type:'list'})}/>;
   return (
     <div style={{ padding:24,flex:1,overflowY:'auto' }}>
@@ -881,6 +891,9 @@ export default function App() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [theme, setTheme] = useState<Theme>('default');
   const [lang, setLang] = useState<Language>('es');
+  const [downloadHistory, setDownloadHistory] = useState<DownloadRecord[]>(loadDownloadHistory);
+
+  function refreshHistory() { setDownloadHistory(loadDownloadHistory()); }
 
   // All apps = base JSON + user-created
   const apps = [...baseApps, ...customApps];
@@ -901,11 +914,11 @@ export default function App() {
 
   const filteredApps = apps.filter(app => {
     const ms = search===''||app.name.toLowerCase().includes(search.toLowerCase())||app.description.toLowerCase().includes(search.toLowerCase());
-    const mc = activeCategory==='Todos'||activeCategory==='Actualizaciones'||app.category===activeCategory;
+    const mc = activeCategory==='Todos'||activeCategory==='Descargas'||app.category===activeCategory;
     return ms&&mc&&online;
   });
 
-  function selectCat(cat:string){ setActiveCategory(cat); setSelectedApp(null); setSearch(''); }
+  function selectCat(cat:string){ setActiveCategory(cat); setSelectedApp(null); setSearch(''); if(cat==='Descargas') refreshHistory(); }
   function selectApp(app:App){ setSelectedApp(app); if(activeCategory==='Inicio') setActiveCategory('Todos'); }
 
   return (
@@ -913,7 +926,7 @@ export default function App() {
       {splash && <SplashScreen onDone={()=>setSplash(false)}/>}
 
       <div style={{ display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden',fontFamily:'Inter,system-ui,sans-serif',background:'hsl(var(--background))',color:'hsl(var(--foreground))' }}>
-        <Titlebar online={online} onToggle={()=>{setOnline(p=>!p);setSelectedApp(null);}} search={search} onSearch={setSearch} onSettings={()=>setShowSettings(true)}/>
+        <Titlebar online={online} onToggle={()=>{setOnline(p=>!p);setSelectedApp(null);}} search={search} onSearch={setSearch} onSettings={()=>setShowSettings(true)} downloadCount={downloadHistory.length} onOpenDownloads={()=>{ setActiveCategory('Descargas'); setSelectedApp(null); refreshHistory(); }}/>
         {/* Sub-nav */}
         <div style={{ background:'hsl(230 28% 9%)',borderBottom:'1px solid hsl(var(--border))',display:'flex',alignItems:'center',height:36,padding:'0 12px',gap:4,flexShrink:0 }}>
           <button className="btn-icon" style={{ fontSize:13 }} onClick={()=>{setSelectedApp(null);}}>← Volver</button>
@@ -939,16 +952,52 @@ export default function App() {
             ) : activeCategory==='Inicio' && !selectedApp ? (
               <HomeSection apps={apps} onSelectApp={selectApp} onSelectCat={selectCat}/>
             ) : activeCategory==='Juegos Roms' && !selectedApp ? (
-              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><JuegosRomsSection customConsoles={customConsoles}/></div>
-            ) : activeCategory==='Actualizaciones' && !selectedApp ? (
-              <div style={{ padding:24 }}>
-                <h2 style={{ margin:'0 0 20px',fontSize:'1.3rem',fontWeight:700 }}>Actualizaciones</h2>
-                <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:200,color:'hsl(var(--muted-foreground))',gap:10 }}>
-                  <span style={{ fontSize:'3rem' }}>✅</span><p style={{ margin:0 }}>Todo está al día</p>
+              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><JuegosRomsSection customConsoles={customConsoles} onDownloadSaved={refreshHistory}/></div>
+            ) : activeCategory==='Descargas' && !selectedApp ? (
+              <div style={{ flex:1,overflowY:'auto',padding:24 }}>
+                <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20 }}>
+                  <div>
+                    <h2 style={{ margin:'0 0 4px',fontSize:'1.3rem',fontWeight:700 }}>Historial de Descargas</h2>
+                    <p style={{ margin:0,fontSize:13,color:'hsl(var(--muted-foreground))' }}>{downloadHistory.length} descarga{downloadHistory.length!==1?'s':''} registrada{downloadHistory.length!==1?'s':''}</p>
+                  </div>
+                  {downloadHistory.length>0&&<button className="btn-primary" style={{ fontSize:12,padding:'6px 14px' }} onClick={()=>{ localStorage.removeItem(DOWNLOAD_HISTORY_KEY); refreshHistory(); showToast('Historial borrado','info'); }}>Limpiar historial</button>}
                 </div>
+                {downloadHistory.length===0 ? (
+                  <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:240,color:'hsl(var(--muted-foreground))',gap:12 }}>
+                    <span style={{ fontSize:'3.5rem',opacity:.4 }}>📥</span>
+                    <p style={{ margin:0,fontSize:15 }}>No hay descargas aún</p>
+                    <p style={{ margin:0,fontSize:13,opacity:.6 }}>Las descargas que hagas aparecerán aquí</p>
+                  </div>
+                ) : (
+                  <div style={{ display:'flex',flexDirection:'column',gap:10 }}>
+                    {downloadHistory.map((rec,i)=>{
+                      const dt = new Date(rec.date);
+                      const dateStr = dt.toLocaleDateString('es-ES',{ day:'2-digit',month:'short',year:'numeric' });
+                      const timeStr = dt.toLocaleTimeString('es-ES',{ hour:'2-digit',minute:'2-digit' });
+                      return (
+                        <div key={`${rec.id}-${i}`} style={{ background:'hsl(var(--card))',border:'1px solid hsl(var(--border))',borderRadius:'1rem',padding:'14px 18px',display:'flex',alignItems:'center',gap:16 }}>
+                          <div style={{ width:52,height:52,borderRadius:'.75rem',background:'hsl(var(--muted))',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.6rem',flexShrink:0 }}>{rec.icon}</div>
+                          <div style={{ flex:1,minWidth:0 }}>
+                            <div style={{ fontWeight:600,fontSize:15,marginBottom:3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{rec.name}</div>
+                            <div style={{ display:'flex',gap:10,fontSize:12,color:'hsl(var(--muted-foreground))' }}>
+                              <span style={{ background:'hsl(var(--muted))',padding:'1px 8px',borderRadius:20 }}>{rec.type==='rom'?'ROM':'App'}</span>
+                              <span>{rec.category}</span>
+                              <span>{rec.size}</span>
+                            </div>
+                          </div>
+                          <div style={{ textAlign:'right',flexShrink:0,color:'hsl(var(--muted-foreground))',fontSize:12 }}>
+                            <div style={{ fontWeight:500,marginBottom:2 }}>{dateStr}</div>
+                            <div style={{ opacity:.7 }}>{timeStr}</div>
+                          </div>
+                          <div style={{ color:'#22c55e',flexShrink:0 }}><Icon name="check" size={18}/></div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ) : selectedApp ? (
-              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><AppDetailView app={selectedApp} onBack={()=>setSelectedApp(null)}/></div>
+              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><AppDetailView app={selectedApp} onBack={()=>setSelectedApp(null)} onDownloadSaved={refreshHistory}/></div>
             ) : (
               <div style={{ flex:1,overflowY:'auto',padding:24 }}>
                 <div className="apps-grid">
