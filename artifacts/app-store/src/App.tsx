@@ -20,6 +20,178 @@ function saveDownloadRecord(record: DownloadRecord) {
   localStorage.setItem(DOWNLOAD_HISTORY_KEY, JSON.stringify(updated));
 }
 
+// ─── Download Options ─────────────────────────────────────────────────────────
+interface DownloadOption {
+  id: string;
+  label: string;
+  sublabel: string;
+  icon: string;
+  size: string;
+  url: string;
+  badge?: string;
+  required?: boolean;
+}
+
+const COMMON_DEPS: Record<string, DownloadOption[]> = {
+  vcpp: [{ id:'vcpp64', label:'Visual C++ 2022 x64', sublabel:'Runtime necesario para programas Windows 64-bit', icon:'⚙️', size:'25 MB', url:'https://aka.ms/vs/17/release/vc_redist.x64.exe', badge:'Requerido' },
+         { id:'vcpp86', label:'Visual C++ 2022 x86', sublabel:'Runtime 32-bit para compatibilidad', icon:'⚙️', size:'14 MB', url:'https://aka.ms/vs/17/release/vc_redist.x86.exe' }],
+  dotnet: [{ id:'dotnet48', label:'.NET Framework 4.8', sublabel:'Framework de Microsoft para aplicaciones .NET', icon:'📦', size:'65 MB', url:'https://dotnet.microsoft.com/en-us/download/dotnet-framework/net48', badge:'Requerido' }],
+  dotnet6: [{ id:'dotnet6', label:'.NET 6 Runtime', sublabel:'Runtime moderno de .NET 6', icon:'📦', size:'52 MB', url:'https://dotnet.microsoft.com/en-us/download/dotnet/6.0', badge:'Requerido' }],
+  directx: [{ id:'dx', label:'DirectX Runtime', sublabel:'Componentes gráficos DirectX para juegos', icon:'🎮', size:'95 MB', url:'https://www.microsoft.com/download/details.aspx?id=35', badge:'Requerido' }],
+  openal: [{ id:'openal', label:'OpenAL Audio', sublabel:'Librería de audio para juegos', icon:'🔊', size:'3 MB', url:'https://www.openal.org/downloads/', badge:'Opcional' }],
+  xna: [{ id:'xna', label:'XNA Framework 4.0', sublabel:'Framework de Microsoft para juegos XNA', icon:'🕹️', size:'23 MB', url:'https://www.microsoft.com/download/details.aspx?id=20914', badge:'Requerido' }],
+};
+
+function getAppDownloadOptions(app: App): { main: DownloadOption[]; deps: DownloadOption[] } {
+  const main: DownloadOption[] = [
+    { id:`main-x64`, label:`${app.name} v${app.version} (64-bit)`, sublabel:`${app.platform} · Instalador recomendado`, icon: app.icon, size: app.size, url: app.downloadUrl, badge:'Principal' },
+    { id:`main-x86`, label:`${app.name} v${app.version} (32-bit)`, sublabel:`${app.platform} · Versión legacy`, icon: app.icon, size: app.size, url: app.downloadUrl },
+  ];
+  let deps: DownloadOption[] = [];
+  const cat = app.category;
+  if (cat === 'Drivers') {
+    deps = [...COMMON_DEPS.vcpp];
+  } else if (cat === 'Juegos') {
+    deps = [...COMMON_DEPS.directx, ...COMMON_DEPS.vcpp, ...COMMON_DEPS.openal];
+  } else if (cat === 'Desarrollos') {
+    deps = [...COMMON_DEPS.dotnet6, ...COMMON_DEPS.vcpp];
+  } else if (cat === 'Emuladores') {
+    deps = [...COMMON_DEPS.vcpp, ...COMMON_DEPS.dotnet48, ...COMMON_DEPS.openal];
+  } else if (cat === 'Diseño') {
+    deps = [...COMMON_DEPS.vcpp, ...COMMON_DEPS.dotnet48];
+  } else {
+    deps = [...COMMON_DEPS.vcpp, ...COMMON_DEPS.dotnet48];
+  }
+  return { main, deps };
+}
+
+function getRomDownloadOptions(rom: Rom, consoleName: string): { main: DownloadOption[]; deps: DownloadOption[] } {
+  const main: DownloadOption[] = [
+    { id:`rom-main`, label:`${rom.title} (${rom.region})`, sublabel:`${consoleName} · ${rom.genre} · ${rom.year} · ${rom.players} jugador(es)`, icon:'🎮', size: rom.size, url: rom.downloadUrl, badge:'ROM' },
+    { id:`rom-alt`, label:`${rom.title} (Alt / Sin parches)`, sublabel:`Versión alternativa sin modificaciones`, icon:'💾', size: rom.size, url: rom.downloadUrl },
+  ];
+  const deps: DownloadOption[] = [...COMMON_DEPS.vcpp, ...COMMON_DEPS.openal];
+  return { main, deps };
+}
+
+// ─── Download Modal ───────────────────────────────────────────────────────────
+function DownloadModal({ title, icon, version, main, deps, onClose, onDownloaded }:
+  { title:string; icon:string; version:string; main:DownloadOption[]; deps:DownloadOption[]; onClose:()=>void; onDownloaded:(opt:DownloadOption)=>void }) {
+  const [downloaded, setDownloaded] = useState<Set<string>>(new Set());
+  const [downloading, setDownloading] = useState<string|null>(null);
+
+  function handleDownload(opt: DownloadOption) {
+    if (downloading) return;
+    setDownloading(opt.id);
+    let p = 0;
+    const iv = setInterval(()=>{
+      p += Math.random()*22;
+      if (p >= 100) {
+        clearInterval(iv);
+        setDownloaded(prev => new Set([...prev, opt.id]));
+        setDownloading(null);
+        showToast(`${opt.label} descargado`, 'success');
+        onDownloaded(opt);
+        window.open(opt.url, '_blank');
+      }
+    }, 180);
+  }
+
+  const badgeColor: Record<string,string> = { Principal:'hsl(var(--primary))', Requerido:'#ef4444', Opcional:'#f59e0b', ROM:'#8b5cf6' };
+
+  function OptionRow({ opt }: { opt: DownloadOption }) {
+    const done = downloaded.has(opt.id);
+    const busy = downloading === opt.id;
+    return (
+      <div style={{ display:'flex',alignItems:'center',gap:14,background:'rgba(255,255,255,.04)',border:`1px solid ${done?'rgba(34,197,94,.35)':'rgba(255,255,255,.08)'}`,borderRadius:'.875rem',padding:'13px 16px',transition:'border-color .2s' }}>
+        <div style={{ width:44,height:44,borderRadius:'.625rem',background:'rgba(255,255,255,.07)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.4rem',flexShrink:0 }}>{opt.icon}</div>
+        <div style={{ flex:1,minWidth:0 }}>
+          <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:3,flexWrap:'wrap' }}>
+            <span style={{ fontWeight:600,fontSize:14,color:'rgba(255,255,255,.9)' }}>{opt.label}</span>
+            {opt.badge&&<span style={{ fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20,background:`${badgeColor[opt.badge]||'#6b7280'}22`,color:badgeColor[opt.badge]||'#9ca3af',border:`1px solid ${badgeColor[opt.badge]||'#6b7280'}44`,textTransform:'uppercase',letterSpacing:'.06em' }}>{opt.badge}</span>}
+          </div>
+          <div style={{ fontSize:12,color:'rgba(255,255,255,.4)',lineHeight:1.4 }}>{opt.sublabel}</div>
+          {busy&&<div style={{ marginTop:6,height:3,background:'rgba(255,255,255,.1)',borderRadius:99,overflow:'hidden' }}><div style={{ height:'100%',background:'hsl(var(--primary))',borderRadius:99,width:'60%',animation:'pulse 1s infinite' }}/></div>}
+        </div>
+        <div style={{ display:'flex',alignItems:'center',gap:10,flexShrink:0 }}>
+          <span style={{ fontSize:12,color:'rgba(255,255,255,.35)',fontWeight:500 }}>{opt.size}</span>
+          {done ? (
+            <div style={{ width:34,height:34,borderRadius:'50%',background:'rgba(34,197,94,.15)',display:'flex',alignItems:'center',justifyContent:'center',color:'#22c55e' }}>
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          ) : (
+            <button onClick={()=>handleDownload(opt)} disabled={!!downloading}
+              style={{ width:34,height:34,borderRadius:'50%',background:downloading?'rgba(255,255,255,.06)':'hsl(var(--primary))',border:'none',cursor:downloading?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'white',transition:'background .2s',opacity:downloading&&!busy?.4:1 }}>
+              {busy ? <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur=".8s" repeatCount="indefinite"/></path></svg>
+                : <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const allOpts = [...main, ...deps];
+  const allDone = allOpts.every(o => downloaded.has(o.id));
+
+  return (
+    <div style={{ position:'fixed',inset:0,zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,.65)',backdropFilter:'blur(6px)' }} onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
+      <div style={{ background:'hsl(230 28% 10%)',border:'1px solid rgba(255,255,255,.1)',borderRadius:'1.25rem',width:'min(560px,95vw)',maxHeight:'82vh',display:'flex',flexDirection:'column',boxShadow:'0 30px 80px rgba(0,0,0,.7)',overflow:'hidden' }}>
+        {/* Header */}
+        <div style={{ display:'flex',alignItems:'center',gap:14,padding:'18px 22px',borderBottom:'1px solid rgba(255,255,255,.08)',flexShrink:0 }}>
+          <div style={{ width:48,height:48,borderRadius:'.75rem',background:'rgba(255,255,255,.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.5rem',flexShrink:0 }}>{icon}</div>
+          <div style={{ flex:1,minWidth:0 }}>
+            <div style={{ fontWeight:700,fontSize:16,color:'rgba(255,255,255,.95)',marginBottom:2 }}>Descargar {title}</div>
+            <div style={{ fontSize:12,color:'rgba(255,255,255,.4)' }}>v{version} · {allOpts.length} archivos disponibles</div>
+          </div>
+          <button onClick={onClose} style={{ width:30,height:30,borderRadius:'50%',background:'rgba(255,255,255,.08)',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,.6)',flexShrink:0 }}>
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ overflowY:'auto',padding:'18px 22px',display:'flex',flexDirection:'column',gap:20,flex:1 }}>
+          {/* Main files */}
+          <div>
+            <div style={{ fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.09em',color:'rgba(255,255,255,.3)',marginBottom:10 }}>Archivos de descarga</div>
+            <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+              {main.map(opt=><OptionRow key={opt.id} opt={opt}/>)}
+            </div>
+          </div>
+          {/* Dependencies */}
+          {deps.length>0&&(
+            <div>
+              <div style={{ fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.09em',color:'rgba(255,255,255,.3)',marginBottom:10 }}>Programas necesarios</div>
+              <div style={{ fontSize:12,color:'rgba(255,255,255,.35)',marginBottom:10,lineHeight:1.5,background:'rgba(255,165,0,.07)',border:'1px solid rgba(255,165,0,.15)',borderRadius:'.625rem',padding:'8px 12px' }}>
+                ⚠️ Instala estos componentes si el programa no abre correctamente en tu sistema.
+              </div>
+              <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                {deps.map(opt=><OptionRow key={opt.id} opt={opt}/>)}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding:'14px 22px',borderTop:'1px solid rgba(255,255,255,.08)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0 }}>
+          <span style={{ fontSize:12,color:'rgba(255,255,255,.35)' }}>{downloaded.size}/{allOpts.length} descargado{downloaded.size!==1?'s':''}</span>
+          <div style={{ display:'flex',gap:10 }}>
+            <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)',color:'rgba(255,255,255,.7)',border:'none',borderRadius:'.625rem',padding:'8px 20px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'inherit' }}>
+              {allDone?'Listo':'Cerrar'}
+            </button>
+            {!allDone&&<button onClick={()=>{ allOpts.filter(o=>!downloaded.has(o.id)&&downloading!==o.id).forEach((o,i)=>setTimeout(()=>handleDownload(o), i*400)); }}
+              disabled={!!downloading}
+              style={{ background:'hsl(var(--primary))',color:'white',border:'none',borderRadius:'.625rem',padding:'8px 20px',fontSize:13,fontWeight:700,cursor:downloading?'not-allowed':'pointer',fontFamily:'inherit',opacity:downloading?.6:1,display:'flex',alignItems:'center',gap:8 }}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Descargar todo
+            </button>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Icons ────────────────────────────────────────────────────────────────────
 function Icon({ name, size = 16 }: { name: string; size?: number }) {
   const s = size;
@@ -733,12 +905,14 @@ function GamingDetailLayout({ onBack, backLabel, coverEmoji, coverBg, title, gen
 
 // ─── App Detail ───────────────────────────────────────────────────────────────
 function AppDetailView({ app, onBack, onDownloadSaved }: { app:App; onBack:()=>void; onDownloadSaved?:()=>void }) {
-  const [progress, setProgress] = useState(0);
-  const [downloading, setDownloading] = useState(false);
-  function handleDownload() {
-    setDownloading(true); let p=0;
-    const iv = setInterval(()=>{ p+=Math.random()*18; if(p>=100){ p=100; clearInterval(iv); setTimeout(()=>{ setDownloading(false); setProgress(0); showToast(`${app.name} descargado`,'success'); saveDownloadRecord({ id:`app-${app.id}-${Date.now()}`, name:app.name, icon:app.icon, type:'app', category:app.category, size:app.size, date:new Date().toISOString() }); onDownloadSaved?.(); window.open(app.downloadUrl,'_blank'); },500); } setProgress(Math.min(p,100)); },180);
+  const [showModal, setShowModal] = useState(false);
+  const { main, deps } = getAppDownloadOptions(app);
+
+  function handleDownloaded(opt: DownloadOption) {
+    saveDownloadRecord({ id:`app-${app.id}-${opt.id}-${Date.now()}`, name:`${app.name} — ${opt.label}`, icon:app.icon, type:'app', category:app.category, size:opt.size, date:new Date().toISOString() });
+    onDownloadSaved?.();
   }
+
   const mediaItems: MediaItem[] = [{ type:'cover',label:'Portada',emoji:app.icon },...(app.videoId?[{type:'video' as const,label:'Preview',videoId:app.videoId}]:[]),...app.screenshots.map((src,i)=>({type:'screen' as const,label:`Captura ${i+1}`,src})),{ type:'cover',label:'Vista adicional',emoji:app.icon }];
   const extraPanel = (
     <div style={{ background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'1rem',padding:'18px 20px' }}>
@@ -753,20 +927,28 @@ function AppDetailView({ app, onBack, onDownloadSaved }: { app:App; onBack:()=>v
       </div>
     </div>
   );
-  return <GamingDetailLayout onBack={onBack} backLabel="Volver" coverEmoji={app.icon} coverBg={`linear-gradient(145deg,${app.color}dd,${app.color}55 60%,#0a0a18)`} title={app.name} genres={[app.category,...app.tags.slice(0,2)]} description={app.description} platform={app.platform} ratingNum={app.rating} reviews={app.reviews} language={app.language} releaseDate={app.releaseDate} size={app.size} developer={app.developer} publisher={app.publisher} accentColor={app.color} actionLabel="Descargar" actionIcon="download" onAction={handleDownload} actionPending={downloading} actionProgress={progress} mediaItems={mediaItems} extraPanel={extraPanel}/>;
+  return (
+    <>
+      {showModal && <DownloadModal title={app.name} icon={app.icon} version={app.version} main={main} deps={deps} onClose={()=>setShowModal(false)} onDownloaded={handleDownloaded}/>}
+      <GamingDetailLayout onBack={onBack} backLabel="Volver" coverEmoji={app.icon} coverBg={`linear-gradient(145deg,${app.color}dd,${app.color}55 60%,#0a0a18)`} title={app.name} genres={[app.category,...app.tags.slice(0,2)]} description={app.description} platform={app.platform} ratingNum={app.rating} reviews={app.reviews} language={app.language} releaseDate={app.releaseDate} size={app.size} developer={app.developer} publisher={app.publisher} accentColor={app.color} actionLabel="Descargar" actionIcon="download" onAction={()=>setShowModal(true)} actionPending={false} actionProgress={0} mediaItems={mediaItems} extraPanel={extraPanel}/>
+    </>
+  );
 }
 
 // ─── ROM Detail ───────────────────────────────────────────────────────────────
 function RomDetailView({ rom, console: c, onBack, onDownloadSaved }: { rom:Rom; console:Console; onBack:()=>void; onDownloadSaved?:()=>void }) {
-  const [progress, setProgress] = useState(0);
-  const [downloading, setDownloading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [filePath, setFilePath] = useState('');
   const accentColor = '#e8692a';
-  function handleDownload() {
-    setDownloading(true); let p=0;
-    const iv = setInterval(()=>{ p+=Math.random()*12; if(p>=100){ p=100; clearInterval(iv); setTimeout(()=>{ setDownloading(false); setProgress(0); setDownloaded(true); showToast(`${rom.title} descargado`,'success'); saveDownloadRecord({ id:`rom-${rom.id}-${Date.now()}`, name:rom.title, icon:'🎮', type:'rom', category:c.name, size:rom.size, date:new Date().toISOString() }); onDownloadSaved?.(); window.open(rom.downloadUrl,'_blank'); },600); } setProgress(Math.min(p,100)); },200);
+  const { main, deps } = getRomDownloadOptions(rom, c.name);
+
+  function handleDownloaded(opt: DownloadOption) {
+    setDownloaded(true);
+    saveDownloadRecord({ id:`rom-${rom.id}-${opt.id}-${Date.now()}`, name:`${rom.title} — ${opt.label}`, icon:'🎮', type:'rom', category:c.name, size:opt.size, date:new Date().toISOString() });
+    onDownloadSaved?.();
   }
+
   function handleSelectFile() {
     const inp=document.createElement('input'); inp.type='file'; inp.accept=c.fileExtensions.join(',');
     inp.onchange=(e:Event)=>{ const f=(e.target as HTMLInputElement).files?.[0]; if(f){ setFilePath(f.name); setDownloaded(true); showToast(`Archivo: ${f.name}`,'success'); } }; inp.click();
@@ -790,7 +972,12 @@ function RomDetailView({ rom, console: c, onBack, onDownloadSaved }: { rom:Rom; 
       </div>
     </div>
   );
-  return <GamingDetailLayout onBack={onBack} backLabel={`Volver a ${c.name}`} coverEmoji="🎮" coverBg={`${c.gradient}, #0a0a18`} title={rom.title} genres={[c.name,rom.genre]} description={rom.description} platform={`${c.name} · ${c.emulator}`} ratingNum={rom.rating*2} reviews={Math.floor(rom.rating*680)} language={`${rom.region} · ${rom.players}P`} releaseDate={rom.year.toString()} size={rom.size} developer={rom.developer} publisher={c.name} accentColor={accentColor} actionLabel={downloaded?'Descargar de nuevo':'Descargar ROM'} actionIcon="download" onAction={handleDownload} actionPending={downloading} actionProgress={progress} secondaryLabel={downloaded?`Ejecutar en ${c.emulator}`:undefined} secondaryIcon="run" onSecondary={downloaded?handleExecute:undefined} mediaItems={mediaItems} extraPanel={extraPanel}/>;
+  return (
+    <>
+      {showModal && <DownloadModal title={rom.title} icon="🎮" version={`${c.name} · ${rom.year}`} main={main} deps={deps} onClose={()=>setShowModal(false)} onDownloaded={handleDownloaded}/>}
+      <GamingDetailLayout onBack={onBack} backLabel={`Volver a ${c.name}`} coverEmoji="🎮" coverBg={`${c.gradient}, #0a0a18`} title={rom.title} genres={[c.name,rom.genre]} description={rom.description} platform={`${c.name} · ${c.emulator}`} ratingNum={rom.rating*2} reviews={Math.floor(rom.rating*680)} language={`${rom.region} · ${rom.players}P`} releaseDate={rom.year.toString()} size={rom.size} developer={rom.developer} publisher={c.name} accentColor={accentColor} actionLabel={downloaded?'Descargar de nuevo':'Descargar ROM'} actionIcon="download" onAction={()=>setShowModal(true)} actionPending={false} actionProgress={0} secondaryLabel={downloaded?`Ejecutar en ${c.emulator}`:undefined} secondaryIcon="run" onSecondary={downloaded?handleExecute:undefined} mediaItems={mediaItems} extraPanel={extraPanel}/>
+    </>
+  );
 }
 
 // ─── Console Banner ───────────────────────────────────────────────────────────
