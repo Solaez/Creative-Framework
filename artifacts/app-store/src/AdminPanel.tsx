@@ -90,18 +90,19 @@ const EMPTY_APP = (): Partial<App> => ({
   videoId:'', screenshots:[],
 });
 
-function AppForm({ onSave, onCancel }: { onSave:(app:App)=>void; onCancel:()=>void }) {
-  const [form, setForm] = useState<Partial<App>>(EMPTY_APP());
-  const [instructionsText, setInstructionsText] = useState('');
-  const [tagsText, setTagsText] = useState('');
+function AppForm({ onSave, onCancel, initialData }: { onSave:(app:App)=>void; onCancel:()=>void; initialData?:App }) {
+  const [form, setForm] = useState<Partial<App>>(initialData ?? EMPTY_APP());
+  const [instructionsText, setInstructionsText] = useState(initialData?.instructions?.join('\n') ?? '');
+  const [tagsText, setTagsText] = useState(initialData?.tags?.join(', ') ?? '');
   const [step, setStep] = useState(0);
+  const isEdit = !!initialData;
 
   const set = (k: keyof App, v: unknown) => setForm(p => ({ ...p, [k]: v }));
 
   function handleSave() {
     if (!form.name || !form.downloadUrl) return;
     const app: App = {
-      id: Date.now(),
+      id: initialData?.id ?? Date.now(),
       name: form.name!,
       category: form.category || 'Programas',
       description: form.description || '',
@@ -277,7 +278,7 @@ function AppForm({ onSave, onCancel }: { onSave:(app:App)=>void; onCancel:()=>vo
         ) : (
           <button onClick={handleSave} disabled={!form.name||!form.downloadUrl}
             style={{ flex:2,background:(!form.name||!form.downloadUrl)?'rgba(255,255,255,.08)':'linear-gradient(135deg,hsl(var(--primary)),hsl(var(--accent)))',border:'none',borderRadius:'.875rem',padding:'10px 20px',color:(!form.name||!form.downloadUrl)?'rgba(255,255,255,.3)':'white',cursor:(!form.name||!form.downloadUrl)?'not-allowed':'pointer',fontFamily:'inherit',fontSize:13,fontWeight:700,transition:'opacity .15s' }}>
-            ✓ Guardar programa
+            ✓ {isEdit ? 'Guardar cambios' : 'Guardar programa'}
           </button>
         )}
       </div>
@@ -495,6 +496,7 @@ interface AdminPanelProps {
 export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles, onUpdateApps, onUpdateHiddenApps, onUpdateConsoles, onClose }: AdminPanelProps) {
   const [tab, setTab] = useState<AdminTab>('apps');
   const [showAppForm, setShowAppForm] = useState(false);
+  const [editingApp, setEditingApp] = useState<App|null>(null);
   const [romView, setRomView] = useState<RomSubView>('list');
   const [deleteConfirm, setDeleteConfirm] = useState<number|null>(null);
   const [appFilter, setAppFilter] = useState<'all'|'base'|'custom'>('all');
@@ -513,17 +515,33 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
     setDeleteConfirm(null);
   }
 
-  function handleHideBaseApp(id: number) {
+  function handleDeleteBaseApp(id: number) {
     const updated = [...hiddenAppIds, id];
     saveHiddenAppIds(updated);
     onUpdateHiddenApps(updated);
     setDeleteConfirm(null);
   }
 
-  function handleRestoreBaseApp(id: number) {
-    const updated = hiddenAppIds.filter(x => x !== id);
-    saveHiddenAppIds(updated);
-    onUpdateHiddenApps(updated);
+  function handleEditApp(app: App, source: 'base'|'custom') {
+    setEditingApp(app);
+    setShowAppForm(false);
+  }
+
+  function handleSaveEditedApp(app: App, originalSource: 'base'|'custom') {
+    if (originalSource === 'custom') {
+      const updated = customApps.map(a => a.id === app.id ? app : a);
+      saveCustomApps(updated);
+      onUpdateApps(updated);
+    } else {
+      // For base apps: hide the original and add edited version as custom
+      const hiddenUpdated = [...hiddenAppIds, app.id];
+      saveHiddenAppIds(hiddenUpdated);
+      onUpdateHiddenApps(hiddenUpdated);
+      const customUpdated = [...customApps, app];
+      saveCustomApps(customUpdated);
+      onUpdateApps(customUpdated);
+    }
+    setEditingApp(null);
   }
 
   const allApps = [
@@ -534,7 +552,7 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
     if (appFilter === 'base') return a._source === 'base';
     if (appFilter === 'custom') return a._source === 'custom';
     return true;
-  });
+  }).filter(a => !hiddenAppIds.includes(a.id));
 
   function handleSaveConsole(c: Console) {
     const updated = [...customConsoles, c];
@@ -598,6 +616,12 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
               <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}>
                 {showAppForm ? (
                   <AppForm onSave={handleSaveApp} onCancel={()=>setShowAppForm(false)}/>
+                ) : editingApp ? (
+                  <AppForm
+                    key={editingApp.id}
+                    initialData={editingApp}
+                    onSave={app=>handleSaveEditedApp(app, allApps.find(a=>a.id===editingApp.id)?._source ?? 'custom')}
+                    onCancel={()=>setEditingApp(null)}/>
                 ) : (
                   <>
                     {/* Header */}
@@ -617,7 +641,7 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
                       {(['all','base','custom'] as const).map(f=>(
                         <button key={f} onClick={()=>setAppFilter(f)}
                           style={{ border:`1px solid ${appFilter===f?'hsl(var(--primary))':'rgba(255,255,255,.12)'}`,background:appFilter===f?'hsl(var(--primary)/.2)':'transparent',color:appFilter===f?'hsl(var(--primary))':'rgba(255,255,255,.5)',borderRadius:20,padding:'4px 12px',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',transition:'all .15s' }}>
-                          {f==='all'?`Todos (${allApps.length})`:f==='base'?`Del catálogo (${baseApps.length})`:`Personalizados (${customApps.length})`}
+                          {f==='all'?`Todos (${visibleApps.length})`:f==='base'?`Catálogo (${baseApps.filter(a=>!hiddenAppIds.includes(a.id)).length})`:`Personalizados (${customApps.length})`}
                         </button>
                       ))}
                     </div>
@@ -634,16 +658,15 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
                       <div style={{ flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:8 }}>
                         {visibleApps.map(app => {
                           const isBase = app._source === 'base';
-                          const isHidden = hiddenAppIds.includes(app.id);
                           return (
-                            <div key={app.id} style={{ background: isHidden?'rgba(255,255,255,.02)':'rgba(255,255,255,.04)',border:`1px solid ${isHidden?'rgba(255,255,255,.05)':'rgba(255,255,255,.08)'}`,borderRadius:'.875rem',padding:'12px 16px',display:'flex',alignItems:'center',gap:14,opacity:isHidden?.5:1 }}>
+                            <div key={app.id} style={{ background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'.875rem',padding:'12px 16px',display:'flex',alignItems:'center',gap:12 }}>
                               <div style={{ width:46,height:46,borderRadius:'.75rem',background:`linear-gradient(135deg,${app.color}bb,${app.color}44)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.4rem',flexShrink:0 }}>{app.icon}</div>
                               <div style={{ flex:1,minWidth:0 }}>
                                 <div style={{ display:'flex',alignItems:'center',gap:7,flexWrap:'wrap' }}>
-                                  <span style={{ fontWeight:600,fontSize:14,color:'white' }}>{app.name}</span>
-                                  {isBase&&<span style={{ fontSize:10,background:'rgba(59,130,246,.2)',color:'#60a5fa',padding:'1px 7px',borderRadius:20,border:'1px solid rgba(59,130,246,.3)',fontWeight:700 }}>CATÁLOGO</span>}
-                                  {!isBase&&<span style={{ fontSize:10,background:'hsl(var(--primary)/.2)',color:'hsl(var(--primary))',padding:'1px 7px',borderRadius:20,border:'1px solid hsl(var(--primary)/.3)',fontWeight:700 }}>PERSONALIZADO</span>}
-                                  {isHidden&&<span style={{ fontSize:10,background:'rgba(239,68,68,.15)',color:'#f87171',padding:'1px 7px',borderRadius:20,border:'1px solid rgba(239,68,68,.25)',fontWeight:700 }}>OCULTO</span>}
+                                  <span style={{ fontWeight:600,fontSize:14,color:'white',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:180 }}>{app.name}</span>
+                                  {isBase
+                                    ? <span style={{ fontSize:10,background:'rgba(59,130,246,.2)',color:'#60a5fa',padding:'1px 7px',borderRadius:20,border:'1px solid rgba(59,130,246,.3)',fontWeight:700,flexShrink:0 }}>CATÁLOGO</span>
+                                    : <span style={{ fontSize:10,background:'hsl(var(--primary)/.2)',color:'hsl(var(--primary))',padding:'1px 7px',borderRadius:20,border:'1px solid hsl(var(--primary)/.3)',fontWeight:700,flexShrink:0 }}>PERSONALIZADO</span>}
                                 </div>
                                 <div style={{ fontSize:12,color:'rgba(255,255,255,.4)',marginTop:3 }}>{app.category} · v{app.version} · {app.size}</div>
                               </div>
@@ -651,14 +674,19 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
                               {/* Actions */}
                               {deleteConfirm===app.id ? (
                                 <div style={{ display:'flex',gap:6,alignItems:'center',flexShrink:0 }}>
-                                  <span style={{ fontSize:12,color:'rgba(255,255,255,.5)' }}>{isBase?'¿Ocultar?':'¿Eliminar?'}</span>
-                                  <button onClick={()=>isBase?handleHideBaseApp(app.id):handleDeleteApp(app.id)} style={{ background:'#ef4444',border:'none',borderRadius:'.5rem',padding:'5px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600 }}>Sí</button>
+                                  <span style={{ fontSize:12,color:'rgba(255,255,255,.5)' }}>¿Eliminar?</span>
+                                  <button onClick={()=>isBase ? handleDeleteBaseApp(app.id) : handleDeleteApp(app.id)} style={{ background:'#ef4444',border:'none',borderRadius:'.5rem',padding:'5px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600 }}>Sí</button>
                                   <button onClick={()=>setDeleteConfirm(null)} style={{ background:'rgba(255,255,255,.08)',border:'none',borderRadius:'.5rem',padding:'5px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12 }}>No</button>
                                 </div>
-                              ) : isHidden ? (
-                                <button onClick={()=>handleRestoreBaseApp(app.id)} title="Restaurar" style={{ flexShrink:0,background:'rgba(34,197,94,.15)',border:'1px solid rgba(34,197,94,.3)',borderRadius:'.625rem',padding:'5px 12px',color:'#4ade80',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600 }}>Restaurar</button>
                               ) : (
-                                <button onClick={()=>setDeleteConfirm(app.id)} title={isBase?'Ocultar del catálogo':'Eliminar'} style={{ width:30,height:30,flexShrink:0,borderRadius:'50%',background:'rgba(239,68,68,.15)',border:'1px solid rgba(239,68,68,.3)',color:'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14 }}>✕</button>
+                                <div style={{ display:'flex',gap:6,flexShrink:0 }}>
+                                  <button onClick={()=>handleEditApp(app, app._source)} title="Editar"
+                                    style={{ height:30,padding:'0 12px',borderRadius:'.5rem',background:'rgba(99,102,241,.15)',border:'1px solid rgba(99,102,241,.3)',color:'#a5b4fc',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:4 }}>
+                                    ✏️ Editar
+                                  </button>
+                                  <button onClick={()=>setDeleteConfirm(app.id)} title="Eliminar"
+                                    style={{ width:30,height:30,borderRadius:'50%',background:'rgba(239,68,68,.15)',border:'1px solid rgba(239,68,68,.3)',color:'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14 }}>✕</button>
+                                </div>
                               )}
                             </div>
                           );
