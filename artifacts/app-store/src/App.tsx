@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import type { App } from "./data/apps";
+import { AdminPanel, loadCustomApps, loadCustomConsoles } from "./AdminPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Rom { id:string;title:string;region:string;size:string;rating:number;year:number;genre:string;players:string;description:string;developer:string;downloadUrl:string;coverUrl:string;screenshots:string[];videoId:string;instructions:string[]; }
@@ -163,6 +164,7 @@ interface SettingsProps {
   theme: Theme; onTheme: (t: Theme) => void;
   lang: Language; onLang: (l: Language) => void;
   onClose: () => void;
+  onAdmin: () => void;
 }
 const THEMES: { id: Theme; label: string; color: string; icon: string }[] = [
   { id:'default', label:'Oscuro', color:'hsl(250 80% 65%)', icon:'moon' },
@@ -171,7 +173,7 @@ const THEMES: { id: Theme; label: string; color: string; icon: string }[] = [
   { id:'forest',  label:'Bosque', color:'hsl(145 65% 50%)', icon:'zap' },
   { id:'fire',    label:'Fuego',  color:'hsl(20 90% 55%)',  icon:'flame' },
 ];
-function SettingsPanel({ theme, onTheme, lang, onLang, onClose }: SettingsProps) {
+function SettingsPanel({ theme, onTheme, lang, onLang, onClose, onAdmin }: SettingsProps) {
   return (
     <>
       <div onClick={onClose} style={{ position:'fixed',inset:0,background:'rgba(0,0,0,.5)',backdropFilter:'blur(4px)',zIndex:500 }}/>
@@ -237,6 +239,25 @@ function SettingsPanel({ theme, onTheme, lang, onLang, onClose }: SettingsProps)
                 </div>
               ))}
             </div>
+          </section>
+
+          {/* Manage content */}
+          <section>
+            <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:12 }}>
+              <Icon name="folder" size={16}/>
+              <span style={{ fontWeight:600,fontSize:14 }}>Administrar contenido</span>
+            </div>
+            <button onClick={()=>{ onClose(); onAdmin(); }}
+              style={{ width:'100%',background:'linear-gradient(135deg,hsl(var(--primary)),hsl(var(--accent)))',border:'none',borderRadius:'.875rem',padding:'13px 16px',cursor:'pointer',display:'flex',alignItems:'center',gap:12,color:'white',fontFamily:'inherit',transition:'opacity .15s' }}
+              onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.opacity='.9'}
+              onMouseLeave={e=>(e.currentTarget as HTMLButtonElement).style.opacity='1'}>
+              <div style={{ width:38,height:38,borderRadius:'.75rem',background:'rgba(255,255,255,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.2rem',flexShrink:0 }}>⚙️</div>
+              <div style={{ textAlign:'left' }}>
+                <div style={{ fontWeight:700,fontSize:14 }}>Abrir gestor de contenido</div>
+                <div style={{ fontSize:12,opacity:.75,marginTop:2 }}>Agrega programas, consolas y ROMs</div>
+              </div>
+              <span style={{ marginLeft:'auto',opacity:.6,fontSize:18 }}>→</span>
+            </button>
           </section>
 
           {/* Clear cache */}
@@ -823,11 +844,12 @@ function RomListView({ console: c, onSelectRom, onBack }: { console:Console; onS
 
 // ─── Juegos Roms Section ──────────────────────────────────────────────────────
 type RomView = { type:'list' }|{ type:'roms'; console:Console }|{ type:'rom'; console:Console; rom:Rom };
-function JuegosRomsSection() {
+function JuegosRomsSection({ customConsoles }: { customConsoles: Console[] }) {
   const [romsData, setRomsData] = useState<RomsData|null>(null);
   const [view, setView] = useState<RomView>({ type:'list' });
   useEffect(()=>{ fetch('/roms.json').then(r=>r.json()).then(setRomsData).catch(()=>showToast('Error cargando ROMs','error')); },[]);
   if(!romsData) return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'60%',color:'hsl(var(--muted-foreground))' }}>Cargando consolas...</div>;
+  const allConsoles = [...romsData.consoles, ...customConsoles];
   if(view.type==='rom') return <RomDetailView rom={view.rom} console={view.console} onBack={()=>setView({type:'roms',console:view.console})}/>;
   if(view.type==='roms') return <RomListView console={view.console} onSelectRom={rom=>setView({type:'rom',console:view.console,rom})} onBack={()=>setView({type:'list'})}/>;
   return (
@@ -835,9 +857,10 @@ function JuegosRomsSection() {
       <div style={{ marginBottom:20 }}>
         <h2 style={{ margin:'0 0 4px',fontSize:'1.3rem',fontWeight:700 }}>Juegos Roms</h2>
         <p style={{ color:'hsl(var(--muted-foreground))',fontSize:14,margin:0 }}>Selecciona una consola para ver sus juegos disponibles</p>
+        {customConsoles.length>0&&<span style={{ fontSize:12,color:'hsl(var(--primary))',marginTop:4,display:'inline-block' }}>+ {customConsoles.length} consola(s) personalizada(s)</span>}
       </div>
       <div style={{ display:'flex',flexDirection:'column',gap:14 }}>
-        {romsData.consoles.map(c=><ConsoleBanner key={c.id} console={c} onClick={()=>setView({type:'roms',console:c})}/>)}
+        {allConsoles.map(c=><ConsoleBanner key={c.id} console={c} onClick={()=>setView({type:'roms',console:c})}/>)}
       </div>
     </div>
   );
@@ -846,21 +869,27 @@ function JuegosRomsSection() {
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [splash, setSplash] = useState(true);
-  const [apps, setApps] = useState<App[]>([]);
+  const [baseApps, setBaseApps] = useState<App[]>([]);
+  const [customApps, setCustomApps] = useState<App[]>(loadCustomApps);
+  const [customConsoles, setCustomConsoles] = useState<Console[]>(loadCustomConsoles);
   const [appsLoading, setAppsLoading] = useState(true);
   const [online, setOnline] = useState(true);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Inicio');
   const [selectedApp, setSelectedApp] = useState<App|null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const [theme, setTheme] = useState<Theme>('default');
   const [lang, setLang] = useState<Language>('es');
 
-  // Load apps from JSON
+  // All apps = base JSON + user-created
+  const apps = [...baseApps, ...customApps];
+
+  // Load base apps from JSON
   useEffect(() => {
     fetch('/apps.json')
       .then(r => r.json())
-      .then((data: AppsData) => { setApps(data.apps); setAppsLoading(false); })
+      .then((data: AppsData) => { setBaseApps(data.apps); setAppsLoading(false); })
       .catch(() => { showToast('Error cargando apps.json', 'error'); setAppsLoading(false); });
   }, []);
 
@@ -910,7 +939,7 @@ export default function App() {
             ) : activeCategory==='Inicio' && !selectedApp ? (
               <HomeSection apps={apps} onSelectApp={selectApp} onSelectCat={selectCat}/>
             ) : activeCategory==='Juegos Roms' && !selectedApp ? (
-              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><JuegosRomsSection/></div>
+              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><JuegosRomsSection customConsoles={customConsoles}/></div>
             ) : activeCategory==='Actualizaciones' && !selectedApp ? (
               <div style={{ padding:24 }}>
                 <h2 style={{ margin:'0 0 20px',fontSize:'1.3rem',fontWeight:700 }}>Actualizaciones</h2>
