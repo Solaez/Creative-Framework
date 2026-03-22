@@ -87,13 +87,15 @@ const EMPTY_APP = (): Partial<App> => ({
   name:'', category:'Programas', description:'', version:'1.0.0', size:'', downloadUrl:'',
   instructions:[], color:'#6366f1', icon:'🚀', isNew:true, tags:[], developer:'',
   publisher:'', rating:8.0, reviews:0, language:'Español', releaseDate:'', platform:'Windows 10, 11',
-  videoId:'', screenshots:[],
+  videoId:'', screenshots:[], coverUrl:'',
 });
 
 function AppForm({ onSave, onCancel, initialData }: { onSave:(app:App)=>void; onCancel:()=>void; initialData?:App }) {
   const [form, setForm] = useState<Partial<App>>(initialData ?? EMPTY_APP());
   const [instructionsText, setInstructionsText] = useState(initialData?.instructions?.join('\n') ?? '');
   const [tagsText, setTagsText] = useState(initialData?.tags?.join(', ') ?? '');
+  const [screenshotUrls, setScreenshotUrls] = useState<string[]>(initialData?.screenshots?.length ? initialData.screenshots : ['']);
+  const [customIconText, setCustomIconText] = useState('');
   const [step, setStep] = useState(0);
   const isEdit = !!initialData;
 
@@ -122,12 +124,13 @@ function AppForm({ onSave, onCancel, initialData }: { onSave:(app:App)=>void; on
       releaseDate: form.releaseDate || new Date().toLocaleDateString('es-ES'),
       platform: form.platform || 'Windows 10, 11',
       videoId: form.videoId || '',
-      screenshots: [],
+      screenshots: screenshotUrls.filter(u => u.trim() !== ''),
+      coverUrl: form.coverUrl || '',
     };
     onSave(app);
   }
 
-  const steps = ['Básico','Detalles','Descarga'];
+  const steps = ['Básico','Detalles','Media','Descarga'];
 
   return (
     <div style={{ display:'flex',flexDirection:'column',height:'100%' }}>
@@ -233,13 +236,79 @@ function AppForm({ onSave, onCancel, initialData }: { onSave:(app:App)=>void; on
             <Field label="Tags" hint="Separados por comas: editor, código, ide">
               <Input value={tagsText} onChange={e=>setTagsText(e.target.value)} placeholder="editor, código, gratuito"/>
             </Field>
-            <Field label="Video ID de YouTube" hint="Solo el ID, ej: KMxo3T_MTvY">
-              <Input value={form.videoId} onChange={e=>set('videoId',e.target.value)} placeholder="KMxo3T_MTvY"/>
+          </>
+        )}
+
+        {/* ── STEP 2: MEDIA ── */}
+        {step===2&&(
+          <>
+            {/* Custom icon */}
+            <Field label="Ícono personalizado" hint="Escribe cualquier emoji directamente">
+              <div style={{ display:'flex',gap:8,alignItems:'center' }}>
+                <Input value={customIconText||form.icon} onChange={e=>{ setCustomIconText(e.target.value); if(e.target.value) set('icon', e.target.value); }} placeholder="🚀 o cualquier emoji" style={{ maxWidth:160 }}/>
+                <span style={{ fontSize:'2rem' }}>{form.icon}</span>
+              </div>
+              <div style={{ display:'flex',gap:6,flexWrap:'wrap',marginTop:8 }}>
+                {ICON_PRESETS.map(ic=>(
+                  <button key={ic} onClick={()=>{ set('icon',ic); setCustomIconText(''); }}
+                    style={{ width:34,height:34,borderRadius:'.5rem',border:`2px solid ${form.icon===ic?'hsl(var(--primary))':'rgba(255,255,255,.1)'}`,background:form.icon===ic?'hsl(var(--primary)/.2)':'rgba(255,255,255,.04)',cursor:'pointer',fontSize:'1.1rem',transition:'all .1s' }}>
+                    {ic}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            {/* Cover image */}
+            <Field label="Imagen de portada (URL)" hint="URL directa a una imagen JPG, PNG o WebP">
+              <Input type="url" value={form.coverUrl||''} onChange={e=>set('coverUrl',e.target.value)} placeholder="https://ejemplo.com/portada.jpg"/>
+              {form.coverUrl&&(
+                <div style={{ marginTop:8,borderRadius:'.75rem',overflow:'hidden',border:'1px solid rgba(255,255,255,.1)',height:140,background:'#0a0a14' }}>
+                  <img src={form.coverUrl} alt="Portada" style={{ width:'100%',height:'100%',objectFit:'cover' }}
+                    onError={e=>{ (e.target as HTMLImageElement).style.display='none'; }}/>
+                </div>
+              )}
+            </Field>
+
+            {/* Video YouTube */}
+            <Field label="Video de YouTube (ID)" hint="Solo el ID del video, ej: KMxo3T_MTvY">
+              <Input value={form.videoId||''} onChange={e=>set('videoId',e.target.value)} placeholder="KMxo3T_MTvY"/>
+              {form.videoId&&(
+                <div style={{ marginTop:8,borderRadius:'.75rem',overflow:'hidden',border:'1px solid rgba(255,255,255,.1)',aspectRatio:'16/9',background:'#0a0a14' }}>
+                  <iframe src={`https://www.youtube.com/embed/${form.videoId}?rel=0&modestbranding=1`} title="preview" allowFullScreen style={{ width:'100%',height:'100%',border:'none' }}/>
+                </div>
+              )}
+            </Field>
+
+            {/* Screenshots */}
+            <Field label="Capturas de pantalla" hint="URL directa a cada imagen (JPG, PNG, WebP)">
+              <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                {screenshotUrls.map((url,i)=>(
+                  <div key={i} style={{ display:'flex',flexDirection:'column',gap:6 }}>
+                    <div style={{ display:'flex',gap:8,alignItems:'center' }}>
+                      <Input type="url" value={url} onChange={e=>{ const u=[...screenshotUrls]; u[i]=e.target.value; setScreenshotUrls(u); }} placeholder={`https://ejemplo.com/captura${i+1}.jpg`}/>
+                      {screenshotUrls.length>1&&(
+                        <button onClick={()=>setScreenshotUrls(p=>p.filter((_,j)=>j!==i))}
+                          style={{ width:30,height:30,flexShrink:0,borderRadius:'50%',background:'rgba(239,68,68,.15)',border:'1px solid rgba(239,68,68,.3)',color:'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14 }}>✕</button>
+                      )}
+                    </div>
+                    {url&&(
+                      <div style={{ borderRadius:'.625rem',overflow:'hidden',border:'1px solid rgba(255,255,255,.08)',height:100,background:'#0a0a14' }}>
+                        <img src={url} alt={`Captura ${i+1}`} style={{ width:'100%',height:'100%',objectFit:'cover' }}
+                          onError={e=>{ (e.target as HTMLImageElement).style.display='none'; }}/>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <button onClick={()=>setScreenshotUrls(p=>[...p,''])}
+                  style={{ background:'rgba(255,255,255,.05)',border:'1px dashed rgba(255,255,255,.15)',borderRadius:'.625rem',padding:'8px',color:'rgba(255,255,255,.4)',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:500 }}>
+                  + Agregar captura
+                </button>
+              </div>
             </Field>
           </>
         )}
 
-        {step===2&&(
+        {step===3&&(
           <>
             <Field label="URL de descarga *" hint="Enlace directo al instalador o página oficial">
               <Input type="url" value={form.downloadUrl} onChange={e=>set('downloadUrl',e.target.value)} placeholder="https://ejemplo.com/descarga"/>
@@ -252,7 +321,7 @@ function AppForm({ onSave, onCancel, initialData }: { onSave:(app:App)=>void; on
             <div style={{ background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'.875rem',padding:'14px 16px' }}>
               <div style={{ fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'rgba(255,255,255,.3)',marginBottom:10 }}>Resumen</div>
               <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:12 }}>
-                {[['Nombre',form.name||'—'],['Categoría',form.category||'—'],['Versión',form.version||'—'],['Tamaño',form.size||'—'],['Desarrollador',form.developer||'—'],['Rating',`${form.rating}/10`]].map(([k,v])=>(
+                {[['Nombre',form.name||'—'],['Categoría',form.category||'—'],['Versión',form.version||'—'],['Tamaño',form.size||'—'],['Desarrollador',form.developer||'—'],['Rating',`${form.rating}/10`],['Portada',form.coverUrl?'Sí':'No'],['Capturas',`${screenshotUrls.filter(u=>u.trim()).length}`]].map(([k,v])=>(
                   <div key={k}><span style={{ color:'rgba(255,255,255,.35)' }}>{k}: </span><span style={{ color:'white',fontWeight:500 }}>{v}</span></div>
                 ))}
               </div>
@@ -271,7 +340,7 @@ function AppForm({ onSave, onCancel, initialData }: { onSave:(app:App)=>void; on
             ← Anterior
           </button>
         )}
-        {step<2 ? (
+        {step<3 ? (
           <button onClick={()=>setStep(s=>s+1)} style={{ flex:2,background:'hsl(var(--primary))',border:'none',borderRadius:'.875rem',padding:'10px 20px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:700 }}>
             Siguiente →
           </button>

@@ -30,4 +30,5 @@ export interface App {
   platform: string;
   videoId: string;
   screenshots: string[];
+  coverUrl?: string;
 }

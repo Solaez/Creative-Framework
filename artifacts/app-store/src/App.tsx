@@ -594,9 +594,11 @@ function HomeSection({ apps, onSelectApp, onSelectCat }: { apps:App[]; onSelectA
 function AppCard({ app, onClick }: { app:App; onClick:()=>void }) {
   return (
     <div onClick={onClick} className="app-card glass-card" style={{ borderRadius:'1rem',overflow:'hidden',cursor:'pointer' }}>
-      <div style={{ height:150,background:`linear-gradient(135deg,${app.color}99,${app.color}44 50%,#0d0d1a)`,display:'flex',alignItems:'center',justifyContent:'center',position:'relative' }}>
-        <span style={{ fontSize:'3.5rem' }}>{app.icon}</span>
-        {app.isNew&&<span style={{ position:'absolute',top:10,right:10,background:'hsl(var(--primary))',color:'white',fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20,textTransform:'uppercase' }}>new</span>}
+      <div style={{ height:150,background:`linear-gradient(135deg,${app.color}99,${app.color}44 50%,#0d0d1a)`,display:'flex',alignItems:'center',justifyContent:'center',position:'relative',overflow:'hidden' }}>
+        {app.coverUrl
+          ? <img src={app.coverUrl} alt={app.name} style={{ position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',opacity:.85 }}/>
+          : <span style={{ fontSize:'3.5rem' }}>{app.icon}</span>}
+        {app.isNew&&<span style={{ position:'absolute',top:10,right:10,background:'hsl(var(--primary))',color:'white',fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20,textTransform:'uppercase',zIndex:1 }}>new</span>}
       </div>
       <div style={{ padding:'10px 14px',display:'flex',alignItems:'center',justifyContent:'space-between' }}>
         <div>
@@ -629,8 +631,8 @@ function DevCard({ label, value, color }: { label:string; value:string; color:st
     </div>
   );
 }
-function GamingDetailLayout({ onBack, backLabel, coverEmoji, coverBg, title, genres, description, platform, ratingNum, reviews, language, releaseDate, size, developer, publisher, accentColor, actionLabel, actionIcon, onAction, actionPending, actionProgress, secondaryLabel, secondaryIcon, onSecondary, extraPanel, mediaItems }:
-  { onBack:()=>void; backLabel:string; coverEmoji:string; coverBg:string; title:string; genres:string[]; description:string; platform:string; ratingNum:number; reviews:number; language:string; releaseDate:string; size:string; developer:string; publisher:string; accentColor:string; actionLabel:string; actionIcon:string; onAction:()=>void; actionPending:boolean; actionProgress:number; secondaryLabel?:string; secondaryIcon?:string; onSecondary?:()=>void; extraPanel?:React.ReactNode; mediaItems:MediaItem[]; }) {
+function GamingDetailLayout({ onBack, backLabel, coverEmoji, coverBg, coverUrl, title, genres, description, platform, ratingNum, reviews, language, releaseDate, size, developer, publisher, accentColor, actionLabel, actionIcon, onAction, actionPending, actionProgress, secondaryLabel, secondaryIcon, onSecondary, extraPanel, mediaItems }:
+  { onBack:()=>void; backLabel:string; coverEmoji:string; coverBg:string; coverUrl?:string; title:string; genres:string[]; description:string; platform:string; ratingNum:number; reviews:number; language:string; releaseDate:string; size:string; developer:string; publisher:string; accentColor:string; actionLabel:string; actionIcon:string; onAction:()=>void; actionPending:boolean; actionProgress:number; secondaryLabel?:string; secondaryIcon?:string; onSecondary?:()=>void; extraPanel?:React.ReactNode; mediaItems:MediaItem[]; }) {
   const [mediaIdx, setMediaIdx] = useState(0);
   const total = mediaItems.length;
   const active = mediaItems[mediaIdx];
@@ -645,8 +647,10 @@ function GamingDetailLayout({ onBack, backLabel, coverEmoji, coverBg, title, gen
       <div style={{ display:'flex',flex:1,position:'relative',zIndex:1,minHeight:0,overflow:'hidden' }}>
         {/* Left */}
         <div style={{ width:280,flexShrink:0,display:'flex',flexDirection:'column',borderRight:'1px solid rgba(255,255,255,.06)',padding:'24px 20px 20px' }}>
-          <div style={{ borderRadius:'.875rem',overflow:'hidden',background:coverBg,aspectRatio:'3/4',display:'flex',alignItems:'center',justifyContent:'center',border:`1px solid ${accentColor}44`,boxShadow:`0 8px 40px ${accentColor}33`,flexShrink:0,marginBottom:16 }}>
-            <span style={{ fontSize:'5.5rem',filter:'drop-shadow(0 4px 12px rgba(0,0,0,.5))' }}>{coverEmoji}</span>
+          <div style={{ borderRadius:'.875rem',overflow:'hidden',background:coverBg,aspectRatio:'3/4',display:'flex',alignItems:'center',justifyContent:'center',border:`1px solid ${accentColor}44`,boxShadow:`0 8px 40px ${accentColor}33`,flexShrink:0,marginBottom:16,position:'relative' }}>
+            {coverUrl
+              ? <img src={coverUrl} alt="portada" style={{ position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover' }}/>
+              : <span style={{ fontSize:'5.5rem',filter:'drop-shadow(0 4px 12px rgba(0,0,0,.5))' }}>{coverEmoji}</span>}
           </div>
           <div style={{ fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.08em',color:'rgba(255,255,255,.3)',marginBottom:8 }}>{mediaIdx+1} / {total}</div>
           <div style={{ borderRadius:'.625rem',overflow:'hidden',border:'1px solid rgba(255,255,255,.1)',background:'#0a0a16',position:'relative',aspectRatio:'16/9',flexShrink:0 }}>
@@ -739,7 +743,11 @@ function AppDetailView({ app, onBack, onDownloadSaved }: { app:App; onBack:()=>v
     setDownloading(true); let p=0;
     const iv = setInterval(()=>{ p+=Math.random()*18; if(p>=100){ p=100; clearInterval(iv); setTimeout(()=>{ setDownloading(false); setProgress(0); showToast(`${app.name} descargado`,'success'); saveDownloadRecord({ id:`app-${app.id}-${Date.now()}`, name:app.name, icon:app.icon, type:'app', category:app.category, size:app.size, date:new Date().toISOString() }); onDownloadSaved?.(); window.open(app.downloadUrl,'_blank'); },500); } setProgress(Math.min(p,100)); },180);
   }
-  const mediaItems: MediaItem[] = [{ type:'cover',label:'Portada',emoji:app.icon },...(app.videoId?[{type:'video' as const,label:'Preview',videoId:app.videoId}]:[]),...app.screenshots.map((src,i)=>({type:'screen' as const,label:`Captura ${i+1}`,src})),{ type:'cover',label:'Vista adicional',emoji:app.icon }];
+  const mediaItems: MediaItem[] = [
+    ...(app.coverUrl?[{type:'screen' as const,label:'Portada',src:app.coverUrl}]:[{type:'cover' as const,label:'Portada',emoji:app.icon}]),
+    ...(app.videoId?[{type:'video' as const,label:'Video',videoId:app.videoId}]:[]),
+    ...app.screenshots.map((src,i)=>({type:'screen' as const,label:`Captura ${i+1}`,src})),
+  ];
   const extraPanel = (
     <div style={{ background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'1rem',padding:'18px 20px' }}>
       <div style={{ fontSize:12,fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',color:'rgba(255,255,255,.35)',marginBottom:14 }}>Instrucciones de instalación</div>
@@ -753,7 +761,7 @@ function AppDetailView({ app, onBack, onDownloadSaved }: { app:App; onBack:()=>v
       </div>
     </div>
   );
-  return <GamingDetailLayout onBack={onBack} backLabel="Volver" coverEmoji={app.icon} coverBg={`linear-gradient(145deg,${app.color}dd,${app.color}55 60%,#0a0a18)`} title={app.name} genres={[app.category,...app.tags.slice(0,2)]} description={app.description} platform={app.platform} ratingNum={app.rating} reviews={app.reviews} language={app.language} releaseDate={app.releaseDate} size={app.size} developer={app.developer} publisher={app.publisher} accentColor={app.color} actionLabel="Descargar" actionIcon="download" onAction={handleDownload} actionPending={downloading} actionProgress={progress} mediaItems={mediaItems} extraPanel={extraPanel}/>;
+  return <GamingDetailLayout onBack={onBack} backLabel="Volver" coverEmoji={app.icon} coverBg={`linear-gradient(145deg,${app.color}dd,${app.color}55 60%,#0a0a18)`} coverUrl={app.coverUrl} title={app.name} genres={[app.category,...app.tags.slice(0,2)]} description={app.description} platform={app.platform} ratingNum={app.rating} reviews={app.reviews} language={app.language} releaseDate={app.releaseDate} size={app.size} developer={app.developer} publisher={app.publisher} accentColor={app.color} actionLabel="Descargar" actionIcon="download" onAction={handleDownload} actionPending={downloading} actionProgress={progress} mediaItems={mediaItems} extraPanel={extraPanel}/>;
 }
 
 // ─── ROM Detail ───────────────────────────────────────────────────────────────
