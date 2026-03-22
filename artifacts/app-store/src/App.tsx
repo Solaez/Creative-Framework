@@ -1013,7 +1013,8 @@ export default function App() {
         </div>
       </div>
 
-      {showSettings && <SettingsPanel theme={theme} onTheme={t=>{setTheme(t);showToast(`Tema cambiado a ${THEMES.find(x=>x.id===t)?.label||t}`,'success');}} lang={lang} onLang={l=>{setLang(l);showToast(`Idioma: ${l==='es'?'Español':'English'}`,'success');}} onClose={()=>setShowSettings(false)}/>}
+      {showSettings && <SettingsPanel theme={theme} onTheme={t=>{setTheme(t);showToast(`Tema cambiado a ${THEMES.find(x=>x.id===t)?.label||t}`,'success');}} lang={lang} onLang={l=>{setLang(l);showToast(`Idioma: ${l==='es'?'Español':'English'}`,'success');}} onClose={()=>setShowSettings(false)} onAdmin={()=>{ setShowSettings(false); setShowAdmin(true); }}/>}
+      {showAdmin && <AdminPanel customApps={customApps} customConsoles={customConsoles} onUpdateApps={updated=>{setCustomApps(updated);}} onUpdateConsoles={updated=>{setCustomConsoles(updated);}} onClose={()=>setShowAdmin(false)}/>}
       <ToastContainer/>
     </>
   );
