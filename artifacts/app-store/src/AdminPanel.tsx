@@ -8,6 +8,7 @@ interface Console { id:string;name:string;shortName:string;gradient:string;logoT
 // ─── Storage keys ────────────────────────────────────────────────────────────
 const CUSTOM_APPS_KEY = 'appstore-custom-apps';
 const CUSTOM_ROMS_KEY = 'appstore-custom-roms';
+const HIDDEN_APPS_KEY = 'appstore-hidden-apps';
 
 export function loadCustomApps(): App[] {
   try { return JSON.parse(localStorage.getItem(CUSTOM_APPS_KEY) || '[]'); } catch { return []; }
@@ -15,8 +16,12 @@ export function loadCustomApps(): App[] {
 export function loadCustomConsoles(): Console[] {
   try { return JSON.parse(localStorage.getItem(CUSTOM_ROMS_KEY) || '[]'); } catch { return []; }
 }
+export function loadHiddenAppIds(): number[] {
+  try { return JSON.parse(localStorage.getItem(HIDDEN_APPS_KEY) || '[]'); } catch { return []; }
+}
 function saveCustomApps(apps: App[]) { localStorage.setItem(CUSTOM_APPS_KEY, JSON.stringify(apps)); }
 function saveCustomConsoles(consoles: Console[]) { localStorage.setItem(CUSTOM_ROMS_KEY, JSON.stringify(consoles)); }
+function saveHiddenAppIds(ids: number[]) { localStorage.setItem(HIDDEN_APPS_KEY, JSON.stringify(ids)); }
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
 function Field({ label, hint, children }: { label:string; hint?:string; children:React.ReactNode }) {
@@ -477,18 +482,22 @@ type AdminTab = 'apps' | 'roms';
 type RomSubView = 'list' | 'add-console' | { consoleId:string; view:'add-rom'|'rom-list' };
 
 interface AdminPanelProps {
+  baseApps: App[];
   customApps: App[];
+  hiddenAppIds: number[];
   customConsoles: Console[];
   onUpdateApps: (apps: App[]) => void;
+  onUpdateHiddenApps: (ids: number[]) => void;
   onUpdateConsoles: (consoles: Console[]) => void;
   onClose: () => void;
 }
 
-export function AdminPanel({ customApps, customConsoles, onUpdateApps, onUpdateConsoles, onClose }: AdminPanelProps) {
+export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles, onUpdateApps, onUpdateHiddenApps, onUpdateConsoles, onClose }: AdminPanelProps) {
   const [tab, setTab] = useState<AdminTab>('apps');
   const [showAppForm, setShowAppForm] = useState(false);
   const [romView, setRomView] = useState<RomSubView>('list');
   const [deleteConfirm, setDeleteConfirm] = useState<number|null>(null);
+  const [appFilter, setAppFilter] = useState<'all'|'base'|'custom'>('all');
 
   function handleSaveApp(app: App) {
     const updated = [...customApps, app];
@@ -503,6 +512,29 @@ export function AdminPanel({ customApps, customConsoles, onUpdateApps, onUpdateC
     onUpdateApps(updated);
     setDeleteConfirm(null);
   }
+
+  function handleHideBaseApp(id: number) {
+    const updated = [...hiddenAppIds, id];
+    saveHiddenAppIds(updated);
+    onUpdateHiddenApps(updated);
+    setDeleteConfirm(null);
+  }
+
+  function handleRestoreBaseApp(id: number) {
+    const updated = hiddenAppIds.filter(x => x !== id);
+    saveHiddenAppIds(updated);
+    onUpdateHiddenApps(updated);
+  }
+
+  const allApps = [
+    ...baseApps.map(a => ({ ...a, _source: 'base' as const })),
+    ...customApps.map(a => ({ ...a, _source: 'custom' as const })),
+  ];
+  const visibleApps = allApps.filter(a => {
+    if (appFilter === 'base') return a._source === 'base';
+    if (appFilter === 'custom') return a._source === 'custom';
+    return true;
+  });
 
   function handleSaveConsole(c: Console) {
     const updated = [...customConsoles, c];
@@ -568,10 +600,11 @@ export function AdminPanel({ customApps, customConsoles, onUpdateApps, onUpdateC
                   <AppForm onSave={handleSaveApp} onCancel={()=>setShowAppForm(false)}/>
                 ) : (
                   <>
-                    <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,flexShrink:0 }}>
+                    {/* Header */}
+                    <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,flexShrink:0 }}>
                       <div>
-                        <span style={{ fontSize:14,fontWeight:600,color:'white' }}>Mis programas personalizados</span>
-                        <span style={{ marginLeft:10,fontSize:12,background:'hsl(var(--primary)/.2)',color:'hsl(var(--primary))',padding:'2px 8px',borderRadius:20,border:'1px solid hsl(var(--primary)/.3)' }}>{customApps.length}</span>
+                        <span style={{ fontSize:14,fontWeight:600,color:'white' }}>Todos los programas</span>
+                        <span style={{ marginLeft:10,fontSize:12,background:'hsl(var(--primary)/.2)',color:'hsl(var(--primary))',padding:'2px 8px',borderRadius:20,border:'1px solid hsl(var(--primary)/.3)' }}>{visibleApps.length}</span>
                       </div>
                       <button onClick={()=>setShowAppForm(true)}
                         style={{ background:'linear-gradient(135deg,hsl(var(--primary)),hsl(var(--accent)))',border:'none',borderRadius:'.875rem',padding:'9px 18px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',gap:6 }}>
@@ -579,39 +612,57 @@ export function AdminPanel({ customApps, customConsoles, onUpdateApps, onUpdateC
                       </button>
                     </div>
 
-                    {customApps.length===0 ? (
+                    {/* Filter pills */}
+                    <div style={{ display:'flex',gap:6,marginBottom:14,flexShrink:0 }}>
+                      {(['all','base','custom'] as const).map(f=>(
+                        <button key={f} onClick={()=>setAppFilter(f)}
+                          style={{ border:`1px solid ${appFilter===f?'hsl(var(--primary))':'rgba(255,255,255,.12)'}`,background:appFilter===f?'hsl(var(--primary)/.2)':'transparent',color:appFilter===f?'hsl(var(--primary))':'rgba(255,255,255,.5)',borderRadius:20,padding:'4px 12px',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',transition:'all .15s' }}>
+                          {f==='all'?`Todos (${allApps.length})`:f==='base'?`Del catálogo (${baseApps.length})`:`Personalizados (${customApps.length})`}
+                        </button>
+                      ))}
+                    </div>
+
+                    {visibleApps.length===0 ? (
                       <div style={{ flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:14,color:'rgba(255,255,255,.25)' }}>
                         <div style={{ fontSize:'4rem' }}>📭</div>
                         <div style={{ textAlign:'center' }}>
-                          <div style={{ fontSize:15,fontWeight:600,marginBottom:6 }}>No hay programas personalizados</div>
+                          <div style={{ fontSize:15,fontWeight:600,marginBottom:6 }}>No hay programas aquí</div>
                           <div style={{ fontSize:13 }}>Haz clic en "+ Agregar programa" para empezar</div>
                         </div>
-                        <button onClick={()=>setShowAppForm(true)}
-                          style={{ background:'hsl(var(--primary)/.15)',border:'1px solid hsl(var(--primary)/.3)',borderRadius:'2rem',padding:'10px 24px',color:'hsl(var(--primary))',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:600,marginTop:4 }}>
-                          Crear mi primer programa →
-                        </button>
                       </div>
                     ) : (
-                      <div style={{ flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:10 }}>
-                        {customApps.map(app => (
-                          <div key={app.id} style={{ background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'.875rem',padding:'12px 16px',display:'flex',alignItems:'center',gap:14 }}>
-                            <div style={{ width:48,height:48,borderRadius:'.75rem',background:`linear-gradient(135deg,${app.color}bb,${app.color}44)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.5rem',flexShrink:0 }}>{app.icon}</div>
-                            <div style={{ flex:1,minWidth:0 }}>
-                              <div style={{ fontWeight:600,fontSize:14,color:'white' }}>{app.name}</div>
-                              <div style={{ fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2 }}>{app.category} · v{app.version} · {app.size}</div>
-                            </div>
-                            {app.isNew&&<span style={{ fontSize:10,background:'hsl(var(--primary)/.2)',color:'hsl(var(--primary))',padding:'2px 8px',borderRadius:20,border:'1px solid hsl(var(--primary)/.3)',fontWeight:700 }}>NUEVO</span>}
-                            {deleteConfirm===app.id ? (
-                              <div style={{ display:'flex',gap:6,alignItems:'center' }}>
-                                <span style={{ fontSize:12,color:'rgba(255,255,255,.5)' }}>¿Eliminar?</span>
-                                <button onClick={()=>handleDeleteApp(app.id)} style={{ background:'#ef4444',border:'none',borderRadius:'.5rem',padding:'5px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600 }}>Sí</button>
-                                <button onClick={()=>setDeleteConfirm(null)} style={{ background:'rgba(255,255,255,.08)',border:'none',borderRadius:'.5rem',padding:'5px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12 }}>No</button>
+                      <div style={{ flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:8 }}>
+                        {visibleApps.map(app => {
+                          const isBase = app._source === 'base';
+                          const isHidden = hiddenAppIds.includes(app.id);
+                          return (
+                            <div key={app.id} style={{ background: isHidden?'rgba(255,255,255,.02)':'rgba(255,255,255,.04)',border:`1px solid ${isHidden?'rgba(255,255,255,.05)':'rgba(255,255,255,.08)'}`,borderRadius:'.875rem',padding:'12px 16px',display:'flex',alignItems:'center',gap:14,opacity:isHidden?.5:1 }}>
+                              <div style={{ width:46,height:46,borderRadius:'.75rem',background:`linear-gradient(135deg,${app.color}bb,${app.color}44)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.4rem',flexShrink:0 }}>{app.icon}</div>
+                              <div style={{ flex:1,minWidth:0 }}>
+                                <div style={{ display:'flex',alignItems:'center',gap:7,flexWrap:'wrap' }}>
+                                  <span style={{ fontWeight:600,fontSize:14,color:'white' }}>{app.name}</span>
+                                  {isBase&&<span style={{ fontSize:10,background:'rgba(59,130,246,.2)',color:'#60a5fa',padding:'1px 7px',borderRadius:20,border:'1px solid rgba(59,130,246,.3)',fontWeight:700 }}>CATÁLOGO</span>}
+                                  {!isBase&&<span style={{ fontSize:10,background:'hsl(var(--primary)/.2)',color:'hsl(var(--primary))',padding:'1px 7px',borderRadius:20,border:'1px solid hsl(var(--primary)/.3)',fontWeight:700 }}>PERSONALIZADO</span>}
+                                  {isHidden&&<span style={{ fontSize:10,background:'rgba(239,68,68,.15)',color:'#f87171',padding:'1px 7px',borderRadius:20,border:'1px solid rgba(239,68,68,.25)',fontWeight:700 }}>OCULTO</span>}
+                                </div>
+                                <div style={{ fontSize:12,color:'rgba(255,255,255,.4)',marginTop:3 }}>{app.category} · v{app.version} · {app.size}</div>
                               </div>
-                            ) : (
-                              <button onClick={()=>setDeleteConfirm(app.id)} style={{ width:30,height:30,borderRadius:'50%',background:'rgba(239,68,68,.15)',border:'1px solid rgba(239,68,68,.3)',color:'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14 }}>✕</button>
-                            )}
-                          </div>
-                        ))}
+
+                              {/* Actions */}
+                              {deleteConfirm===app.id ? (
+                                <div style={{ display:'flex',gap:6,alignItems:'center',flexShrink:0 }}>
+                                  <span style={{ fontSize:12,color:'rgba(255,255,255,.5)' }}>{isBase?'¿Ocultar?':'¿Eliminar?'}</span>
+                                  <button onClick={()=>isBase?handleHideBaseApp(app.id):handleDeleteApp(app.id)} style={{ background:'#ef4444',border:'none',borderRadius:'.5rem',padding:'5px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600 }}>Sí</button>
+                                  <button onClick={()=>setDeleteConfirm(null)} style={{ background:'rgba(255,255,255,.08)',border:'none',borderRadius:'.5rem',padding:'5px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12 }}>No</button>
+                                </div>
+                              ) : isHidden ? (
+                                <button onClick={()=>handleRestoreBaseApp(app.id)} title="Restaurar" style={{ flexShrink:0,background:'rgba(34,197,94,.15)',border:'1px solid rgba(34,197,94,.3)',borderRadius:'.625rem',padding:'5px 12px',color:'#4ade80',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600 }}>Restaurar</button>
+                              ) : (
+                                <button onClick={()=>setDeleteConfirm(app.id)} title={isBase?'Ocultar del catálogo':'Eliminar'} style={{ width:30,height:30,flexShrink:0,borderRadius:'50%',background:'rgba(239,68,68,.15)',border:'1px solid rgba(239,68,68,.3)',color:'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14 }}>✕</button>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </>

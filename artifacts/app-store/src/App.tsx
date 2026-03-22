@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import type { App } from "./data/apps";
-import { AdminPanel, loadCustomApps, loadCustomConsoles } from "./AdminPanel";
+import { AdminPanel, loadCustomApps, loadCustomConsoles, loadHiddenAppIds } from "./AdminPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Rom { id:string;title:string;region:string;size:string;rating:number;year:number;genre:string;players:string;description:string;developer:string;downloadUrl:string;coverUrl:string;screenshots:string[];videoId:string;instructions:string[]; }
@@ -892,11 +892,13 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>('default');
   const [lang, setLang] = useState<Language>('es');
   const [downloadHistory, setDownloadHistory] = useState<DownloadRecord[]>(loadDownloadHistory);
+  const [hiddenAppIds, setHiddenAppIds] = useState<number[]>(loadHiddenAppIds);
 
   function refreshHistory() { setDownloadHistory(loadDownloadHistory()); }
 
-  // All apps = base JSON + user-created
-  const apps = [...baseApps, ...customApps];
+  // All apps = visible base JSON apps + user-created
+  const visibleBaseApps = baseApps.filter(a => !hiddenAppIds.includes(a.id));
+  const apps = [...visibleBaseApps, ...customApps];
 
   // Load base apps from JSON
   useEffect(() => {
@@ -1014,7 +1016,7 @@ export default function App() {
       </div>
 
       {showSettings && <SettingsPanel theme={theme} onTheme={t=>{setTheme(t);showToast(`Tema cambiado a ${THEMES.find(x=>x.id===t)?.label||t}`,'success');}} lang={lang} onLang={l=>{setLang(l);showToast(`Idioma: ${l==='es'?'Español':'English'}`,'success');}} onClose={()=>setShowSettings(false)} onAdmin={()=>{ setShowSettings(false); setShowAdmin(true); }}/>}
-      {showAdmin && <AdminPanel customApps={customApps} customConsoles={customConsoles} onUpdateApps={updated=>{setCustomApps(updated);}} onUpdateConsoles={updated=>{setCustomConsoles(updated);}} onClose={()=>setShowAdmin(false)}/>}
+      {showAdmin && <AdminPanel baseApps={baseApps} customApps={customApps} hiddenAppIds={hiddenAppIds} customConsoles={customConsoles} onUpdateApps={updated=>{setCustomApps(updated);}} onUpdateHiddenApps={ids=>{setHiddenAppIds(ids);}} onUpdateConsoles={updated=>{setCustomConsoles(updated);}} onClose={()=>setShowAdmin(false)}/>}
       <ToastContainer/>
     </>
   );
