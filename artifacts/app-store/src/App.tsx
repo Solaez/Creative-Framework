@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { APPS, type App } from "./data/apps";
+import type { App } from "./data/apps";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Rom { id:string;title:string;region:string;size:string;rating:number;year:number;genre:string;players:string;description:string;developer:string;downloadUrl:string;coverUrl:string;screenshots:string[];videoId:string;instructions:string[]; }
 interface Console { id:string;name:string;shortName:string;gradient:string;logoText:string;description:string;emulator:string;fileExtensions:string[];romCount:number;roms:Rom[]; }
 interface RomsData { consoles: Console[] }
+interface AppsData { apps: App[] }
 type Theme = 'default' | 'moody' | 'midnight' | 'forest' | 'fire';
 type Language = 'es' | 'en';
 
@@ -332,8 +333,8 @@ function SideItem({ cat, active, onSelect, accent=false }: { cat:string; active:
 }
 
 // ─── Hero Carousel ────────────────────────────────────────────────────────────
-const HERO_APPS = APPS.slice(0, 5);
-function HeroCarousel({ onSelectApp }: { onSelectApp: (a:App)=>void }) {
+function HeroCarousel({ apps, onSelectApp }: { apps: App[]; onSelectApp: (a:App)=>void }) {
+  const heroApps = apps.slice(0, 5);
   const [idx, setIdx] = useState(0);
   const [key, setKey] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval>|null>(null);
@@ -343,12 +344,14 @@ function HeroCarousel({ onSelectApp }: { onSelectApp: (a:App)=>void }) {
   }, []);
 
   useEffect(() => {
-    timerRef.current = setInterval(() => go((idx+1)%HERO_APPS.length), 5000);
+    if (!heroApps.length) return;
+    timerRef.current = setInterval(() => go((idx+1)%heroApps.length), 5000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [idx, go]);
+  }, [idx, go, heroApps.length]);
 
-  const app = HERO_APPS[idx];
-  const total = HERO_APPS.length;
+  if (!heroApps.length) return null;
+  const app = heroApps[idx];
+  const total = heroApps.length;
 
   return (
     <div style={{ position:'relative',height:280,borderRadius:'1.25rem',overflow:'hidden',flexShrink:0 }}>
@@ -387,13 +390,13 @@ function HeroCarousel({ onSelectApp }: { onSelectApp: (a:App)=>void }) {
       </button>
       {/* Dots */}
       <div style={{ position:'absolute',bottom:14,left:'50%',transform:'translateX(-50%)',display:'flex',gap:6,zIndex:2 }}>
-        {HERO_APPS.map((_,i)=>(
+        {heroApps.map((_,i)=>(
           <button key={i} onClick={()=>go(i)} className={`hero-dot ${i===idx?'active':''}`} style={{ width:i===idx?22:8,height:8,borderRadius:4,background:i===idx?'white':'rgba(255,255,255,.4)',border:'none',cursor:'pointer',transition:'all .2s' }}/>
         ))}
       </div>
       {/* Thumbnail strip */}
       <div style={{ position:'absolute',bottom:14,right:24,display:'flex',gap:8,zIndex:2 }}>
-        {HERO_APPS.map((a,i)=>(
+        {heroApps.map((a,i)=>(
           <div key={i} onClick={()=>go(i)}
             style={{ width:54,height:40,borderRadius:'.5rem',background:a.color+'cc',border:`2px solid ${i===idx?'white':'rgba(255,255,255,.2)'}`,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.2rem',transition:'border-color .2s',flexShrink:0 }}>
             {a.icon}
@@ -443,15 +446,15 @@ const FEATURES = [
 ];
 
 // ─── Home Section ─────────────────────────────────────────────────────────────
-function HomeSection({ onSelectApp, onSelectCat }: { onSelectApp:(a:App)=>void; onSelectCat:(c:string)=>void }) {
-  const topApps = [...APPS].sort((a,b)=>b.rating-a.rating).slice(0,8);
-  const newApps = APPS.filter(a=>a.isNew);
-  const allHighRated = APPS.filter(a=>a.rating>=9.0);
+function HomeSection({ apps, onSelectApp, onSelectCat }: { apps:App[]; onSelectApp:(a:App)=>void; onSelectCat:(c:string)=>void }) {
+  const topApps = [...apps].sort((a,b)=>b.rating-a.rating).slice(0,8);
+  const newApps = apps.filter(a=>a.isNew);
+  const allHighRated = apps.filter(a=>a.rating>=9.0);
 
   return (
     <div style={{ flex:1,overflowY:'auto',padding:'24px 28px',display:'flex',flexDirection:'column',gap:28 }}>
       {/* Hero */}
-      <HeroCarousel onSelectApp={onSelectApp}/>
+      <HeroCarousel apps={apps} onSelectApp={onSelectApp}/>
 
       {/* Categories */}
       <section>
@@ -843,6 +846,8 @@ function JuegosRomsSection() {
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [splash, setSplash] = useState(true);
+  const [apps, setApps] = useState<App[]>([]);
+  const [appsLoading, setAppsLoading] = useState(true);
   const [online, setOnline] = useState(true);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Inicio');
@@ -851,13 +856,21 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>('default');
   const [lang, setLang] = useState<Language>('es');
 
+  // Load apps from JSON
+  useEffect(() => {
+    fetch('/apps.json')
+      .then(r => r.json())
+      .then((data: AppsData) => { setApps(data.apps); setAppsLoading(false); })
+      .catch(() => { showToast('Error cargando apps.json', 'error'); setAppsLoading(false); });
+  }, []);
+
   // Apply theme class to html element
   useEffect(() => {
     const el = document.documentElement;
     el.className = theme==='default'?'':(`theme-${theme}`);
   }, [theme]);
 
-  const filteredApps = APPS.filter(app => {
+  const filteredApps = apps.filter(app => {
     const ms = search===''||app.name.toLowerCase().includes(search.toLowerCase())||app.description.toLowerCase().includes(search.toLowerCase());
     const mc = activeCategory==='Todos'||activeCategory==='Actualizaciones'||app.category===activeCategory;
     return ms&&mc&&online;
@@ -883,14 +896,19 @@ export default function App() {
         <div style={{ display:'flex',flex:1,overflow:'hidden' }}>
           <Sidebar active={activeCategory} onSelect={selectCat}/>
           <main style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}>
-            {!online ? (
+            {appsLoading ? (
+              <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'70%',gap:14,color:'hsl(var(--muted-foreground))' }}>
+                <span style={{ fontSize:'2.5rem',opacity:.5 }}>📦</span>
+                <p style={{ margin:0,fontSize:15 }}>Cargando aplicaciones...</p>
+              </div>
+            ) : !online ? (
               <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'80%',gap:14,color:'hsl(var(--muted-foreground))' }}>
                 <span style={{ fontSize:'3.5rem',opacity:.4 }}>📡</span>
                 <p style={{ margin:0,fontSize:16 }}>Sin conexión a internet</p>
                 <button className="btn-primary" onClick={()=>setOnline(true)}><Icon name="wifi" size={15}/> Reconectar</button>
               </div>
             ) : activeCategory==='Inicio' && !selectedApp ? (
-              <HomeSection onSelectApp={selectApp} onSelectCat={selectCat}/>
+              <HomeSection apps={apps} onSelectApp={selectApp} onSelectCat={selectCat}/>
             ) : activeCategory==='Juegos Roms' && !selectedApp ? (
               <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><JuegosRomsSection/></div>
             ) : activeCategory==='Actualizaciones' && !selectedApp ? (
