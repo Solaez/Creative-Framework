@@ -171,90 +171,184 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const USER_SESSION_KEY = 'appstore_user_session';
+const USERS_DB_KEY = 'appstore_users_db';
 interface UserSession { username: string; email: string; role: 'admin' | 'user' }
+interface StoredUser { username: string; email: string; password: string; role: 'admin' | 'user' }
+const ADMIN_CREDENTIALS: Record<string, string> = { solaez: 'solaez', unknown: 'solaez' };
+
 function loadUserSession(): UserSession | null {
   try { return JSON.parse(localStorage.getItem(USER_SESSION_KEY) || 'null'); } catch { return null; }
 }
 function saveUserSession(session: UserSession) {
   localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
 }
-function clearUserSession() {
-  localStorage.removeItem(USER_SESSION_KEY);
-}
-const ADMIN_USERS = ['solaez', 'unknown'];
+function clearUserSession() { localStorage.removeItem(USER_SESSION_KEY); }
 
-function LoginScreen({ onLogin }: { onLogin: (session: UserSession) => void }) {
+function loadUsersDb(): Record<string, StoredUser> {
+  try { return JSON.parse(localStorage.getItem(USERS_DB_KEY) || '{}'); } catch { return {}; }
+}
+function saveUsersDb(db: Record<string, StoredUser>) {
+  localStorage.setItem(USERS_DB_KEY, JSON.stringify(db));
+}
+
+function authLogin(username: string, password: string): { ok: boolean; session?: UserSession; error?: string } {
+  const u = username.trim().toLowerCase();
+  const p = password.trim();
+  if (ADMIN_CREDENTIALS[u] !== undefined) {
+    if (ADMIN_CREDENTIALS[u] !== p) return { ok: false, error: 'Contraseña incorrecta.' };
+    return { ok: true, session: { username: u, email: `${u}@admin.local`, role: 'admin' } };
+  }
+  const db = loadUsersDb();
+  const stored = db[u];
+  if (!stored) return { ok: false, error: 'Usuario no encontrado. ¿Quieres crear una cuenta?' };
+  if (stored.password !== p) return { ok: false, error: 'Contraseña incorrecta.' };
+  return { ok: true, session: { username: stored.username, email: stored.email, role: 'user' } };
+}
+
+function authRegister(username: string, email: string, password: string): { ok: boolean; session?: UserSession; error?: string } {
+  const u = username.trim().toLowerCase();
+  if (ADMIN_CREDENTIALS[u] !== undefined) return { ok: false, error: 'Ese nombre de usuario no está disponible.' };
+  if (u.length < 3) return { ok: false, error: 'El usuario debe tener al menos 3 caracteres.' };
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) return { ok: false, error: 'Correo electrónico inválido.' };
+  if (password.trim().length < 4) return { ok: false, error: 'La contraseña debe tener al menos 4 caracteres.' };
+  const db = loadUsersDb();
+  if (db[u]) return { ok: false, error: 'Ese usuario ya existe. Intenta iniciar sesión.' };
+  const newUser: StoredUser = { username: u, email: email.trim(), password: password.trim(), role: 'user' };
+  db[u] = newUser;
+  saveUsersDb(db);
+  return { ok: true, session: { username: u, email: email.trim(), role: 'user' } };
+}
+
+function AuthModal({ onLogin, onClose }: { onLogin: (session: UserSession) => void; onClose?: () => void }) {
+  const [tab, setTab] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  function reset() { setUsername(''); setEmail(''); setPassword(''); setError(''); }
+  function switchTab(t: 'login' | 'register') { setTab(t); reset(); }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (!username.trim() || !email.trim() || !password.trim()) {
+    if (!username.trim() || !password.trim() || (tab === 'register' && !email.trim())) {
       setError('Por favor completa todos los campos.');
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      setError('Por favor ingresa un correo válido.');
-      return;
-    }
-    if (password.length < 4) {
-      setError('La contraseña debe tener al menos 4 caracteres.');
       return;
     }
     setLoading(true);
     setTimeout(() => {
-      const role: 'admin' | 'user' = ADMIN_USERS.includes(username.trim().toLowerCase()) ? 'admin' : 'user';
-      const session: UserSession = { username: username.trim(), email: email.trim(), role };
-      saveUserSession(session);
-      onLogin(session);
+      const result = tab === 'login'
+        ? authLogin(username, password)
+        : authRegister(username, email, password);
+      if (result.ok && result.session) {
+        saveUserSession(result.session);
+        onLogin(result.session);
+      } else {
+        setError(result.error || 'Error desconocido.');
+      }
       setLoading(false);
-    }, 600);
+    }, 500);
   }
 
-  const inputStyle: React.CSSProperties = {
-    background: 'hsl(var(--muted))', border: '1px solid hsl(var(--border))', borderRadius: '.625rem',
-    color: 'hsl(var(--foreground))', padding: '10px 14px', width: '100%', outline: 'none',
-    fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box',
+  const inp: React.CSSProperties = {
+    width: '100%', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)',
+    borderRadius: '.5rem', color: 'white', padding: '11px 14px', fontSize: 14,
+    fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', transition: 'border-color .15s',
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'hsl(var(--background))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,.025) 1px, transparent 1px)', backgroundSize: '24px 24px', pointerEvents: 'none' }}/>
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 400, height: 400, background: 'radial-gradient(circle, hsl(var(--primary)/.15), transparent 70%)', pointerEvents: 'none' }}/>
-      <div style={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '1.25rem', padding: '36px 32px', width: '100%', maxWidth: 380, position: 'relative', zIndex: 1, boxShadow: '0 24px 60px rgba(0,0,0,.5)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ width: 60, height: 60, borderRadius: '1rem', background: 'linear-gradient(135deg,hsl(var(--primary)),hsl(var(--accent)))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', margin: '0 auto 14px', boxShadow: '0 0 40px hsl(var(--primary)/.3)' }}>🚀</div>
-          <div style={{ fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-.01em' }}>AppStore XD</div>
-          <div style={{ fontSize: 13, color: 'hsl(var(--muted-foreground))', marginTop: 4 }}>Inicia sesión para continuar</div>
-        </div>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--foreground))' }}>Usuario</label>
-            <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Ingresa tu usuario" style={inputStyle} autoComplete="username"/>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--foreground))' }}>Correo electrónico</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@ejemplo.com" style={inputStyle} autoComplete="email"/>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--foreground))' }}>Contraseña</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} autoComplete="current-password"/>
-          </div>
-          {error && (
-            <div style={{ background: 'hsl(0 80% 50%/.15)', border: '1px solid hsl(0 80% 50%/.3)', borderRadius: '.625rem', padding: '8px 12px', fontSize: 13, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Icon name="x" size={14}/>{error}
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(6px)', background: 'rgba(0,0,0,.55)' }}>
+      <div style={{ width: '100%', maxWidth: 760, margin: '0 20px', background: 'hsl(230 28% 10%)', borderRadius: '1.5rem', overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,.7)', border: '1px solid rgba(255,255,255,.1)', display: 'flex', minHeight: 480 }}>
+
+        {/* Left panel */}
+        <div style={{ flex: '0 0 42%', background: 'linear-gradient(160deg,hsl(var(--primary)/.8),hsl(250 60% 20%))', padding: '40px 36px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,.06) 1px, transparent 1px), radial-gradient(circle at 80% 80%, rgba(255,255,255,.04) 1px, transparent 1px)', backgroundSize: '28px 28px', pointerEvents: 'none' }}/>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{ width: 54, height: 54, borderRadius: '1rem', background: 'rgba(255,255,255,.15)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem', marginBottom: 22, border: '1px solid rgba(255,255,255,.2)' }}>🚀</div>
+            <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: 10 }}>AppStore XD</div>
+            <div style={{ fontSize: 13.5, color: 'rgba(255,255,255,.6)', lineHeight: 1.65 }}>
+              {tab === 'login' ? 'Bienvenido de nuevo.\nInicia sesión para acceder a tus descargas.' : 'Crea tu cuenta gratis\ny empieza a descargar.'}
             </div>
+          </div>
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[['🔒', 'Descargas seguras'], ['⚡', 'Acceso instantáneo'], ['🎮', 'ROMs y emuladores']].map(([ico, txt]) => (
+              <div key={txt} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'rgba(255,255,255,.55)' }}>
+                <span style={{ fontSize: 15 }}>{ico}</span>{txt}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right panel */}
+        <div style={{ flex: 1, padding: '36px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative' }}>
+          {onClose && (
+            <button onClick={onClose} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,.08)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', color: 'rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="x" size={16}/>
+            </button>
           )}
-          <button type="submit" disabled={loading}
-            style={{ marginTop: 4, width: '100%', background: 'linear-gradient(135deg,hsl(var(--primary)),hsl(var(--accent)))', border: 'none', borderRadius: '.75rem', padding: '12px 16px', cursor: loading ? 'not-allowed' : 'pointer', color: 'white', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, opacity: loading ? .7 : 1, transition: 'opacity .15s' }}>
-            {loading ? 'Ingresando...' : 'Ingresar'}
-          </button>
-        </form>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,.06)', borderRadius: '.75rem', padding: 4, marginBottom: 28 }}>
+            {(['login', 'register'] as const).map(t => (
+              <button key={t} onClick={() => switchTab(t)}
+                style={{ flex: 1, border: 'none', borderRadius: '.5rem', padding: '8px 0', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s', background: tab === t ? 'hsl(var(--primary))' : 'transparent', color: tab === t ? 'white' : 'rgba(255,255,255,.45)' }}>
+                {t === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'white', marginBottom: 4 }}>{tab === 'login' ? '¡Bienvenido de nuevo!' : 'Crea tu cuenta'}</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.4)' }}>{tab === 'login' ? 'Ingresa tus credenciales para continuar.' : 'Regístrate gratis para acceder a todo el contenido.'}</div>
+          </div>
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,.6)', letterSpacing: '.02em' }}>USUARIO</label>
+              <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Tu nombre de usuario" style={inp} autoComplete="username"
+                onFocus={e => (e.target as HTMLInputElement).style.borderColor = 'hsl(var(--primary))'}
+                onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,.12)'}/>
+            </div>
+            {tab === 'register' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,.6)', letterSpacing: '.02em' }}>CORREO ELECTRÓNICO</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@ejemplo.com" style={inp} autoComplete="email"
+                  onFocus={e => (e.target as HTMLInputElement).style.borderColor = 'hsl(var(--primary))'}
+                  onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,.12)'}/>
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,.6)', letterSpacing: '.02em' }}>CONTRASEÑA</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={inp} autoComplete={tab === 'login' ? 'current-password' : 'new-password'}
+                onFocus={e => (e.target as HTMLInputElement).style.borderColor = 'hsl(var(--primary))'}
+                onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,.12)'}/>
+            </div>
+
+            {error && (
+              <div style={{ background: 'rgba(239,68,68,.15)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '.5rem', padding: '9px 12px', fontSize: 13, color: '#fca5a5', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Icon name="x" size={13}/>{error}
+              </div>
+            )}
+
+            <button type="submit" disabled={loading}
+              style={{ marginTop: 4, width: '100%', background: 'hsl(var(--primary))', border: 'none', borderRadius: '.75rem', padding: '13px 16px', cursor: loading ? 'not-allowed' : 'pointer', color: 'white', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, opacity: loading ? .7 : 1, transition: 'opacity .15s,transform .1s' }}
+              onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = ''; }}>
+              {loading ? 'Procesando...' : tab === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+            </button>
+
+            <div style={{ textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,.35)' }}>
+              {tab === 'login' ? '¿No tienes cuenta? ' : '¿Ya tienes cuenta? '}
+              <button type="button" onClick={() => switchTab(tab === 'login' ? 'register' : 'login')}
+                style={{ background: 'none', border: 'none', color: 'hsl(var(--primary))', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: 0 }}>
+                {tab === 'login' ? 'Regístrate aquí' : 'Inicia sesión'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
@@ -846,10 +940,11 @@ function GamingDetailLayout({ onBack, backLabel, coverEmoji, coverBg, coverUrl, 
 }
 
 // ─── App Detail ───────────────────────────────────────────────────────────────
-function AppDetailView({ app, onBack, onDownloadSaved }: { app:App; onBack:()=>void; onDownloadSaved?:()=>void }) {
+function AppDetailView({ app, onBack, onDownloadSaved, onRequireAuth }: { app:App; onBack:()=>void; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
   const [progress, setProgress] = useState(0);
   const [downloading, setDownloading] = useState(false);
   function handleDownload() {
+    if (onRequireAuth && !onRequireAuth()) return;
     setDownloading(true); let p=0;
     const iv = setInterval(()=>{ p+=Math.random()*18; if(p>=100){ p=100; clearInterval(iv); setTimeout(()=>{ setDownloading(false); setProgress(0); showToast(`${app.name} descargado`,'success'); saveDownloadRecord({ id:`app-${app.id}-${Date.now()}`, name:app.name, icon:app.icon, type:'app', category:app.category, size:app.size, date:new Date().toISOString() }); onDownloadSaved?.(); window.open(app.downloadUrl,'_blank'); },500); } setProgress(Math.min(p,100)); },180);
   }
@@ -875,13 +970,14 @@ function AppDetailView({ app, onBack, onDownloadSaved }: { app:App; onBack:()=>v
 }
 
 // ─── ROM Detail ───────────────────────────────────────────────────────────────
-function RomDetailView({ rom, console: c, onBack, onDownloadSaved }: { rom:Rom; console:Console; onBack:()=>void; onDownloadSaved?:()=>void }) {
+function RomDetailView({ rom, console: c, onBack, onDownloadSaved, onRequireAuth }: { rom:Rom; console:Console; onBack:()=>void; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
   const [progress, setProgress] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [filePath, setFilePath] = useState('');
   const accentColor = '#e8692a';
   function handleDownload() {
+    if (onRequireAuth && !onRequireAuth()) return;
     setDownloading(true); let p=0;
     const iv = setInterval(()=>{ p+=Math.random()*12; if(p>=100){ p=100; clearInterval(iv); setTimeout(()=>{ setDownloading(false); setProgress(0); setDownloaded(true); showToast(`${rom.title} descargado`,'success'); saveDownloadRecord({ id:`rom-${rom.id}-${Date.now()}`, name:rom.title, icon:'🎮', type:'rom', category:c.name, size:rom.size, date:new Date().toISOString() }); onDownloadSaved?.(); window.open(rom.downloadUrl,'_blank'); },600); } setProgress(Math.min(p,100)); },200);
   }
@@ -972,13 +1068,13 @@ function RomListView({ console: c, onSelectRom, onBack }: { console:Console; onS
 
 // ─── Juegos Roms Section ──────────────────────────────────────────────────────
 type RomView = { type:'list' }|{ type:'roms'; console:Console }|{ type:'rom'; console:Console; rom:Rom };
-function JuegosRomsSection({ customConsoles, onDownloadSaved }: { customConsoles: Console[]; onDownloadSaved?:()=>void }) {
+function JuegosRomsSection({ customConsoles, onDownloadSaved, onRequireAuth }: { customConsoles: Console[]; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
   const [romsData, setRomsData] = useState<RomsData|null>(null);
   const [view, setView] = useState<RomView>({ type:'list' });
   useEffect(()=>{ fetch('/roms.json').then(r=>r.json()).then(setRomsData).catch(()=>showToast('Error cargando ROMs','error')); },[]);
   if(!romsData) return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'60%',color:'hsl(var(--muted-foreground))' }}>Cargando consolas...</div>;
   const allConsoles = [...romsData.consoles, ...customConsoles];
-  if(view.type==='rom') return <RomDetailView rom={view.rom} console={view.console} onBack={()=>setView({type:'roms',console:view.console})} onDownloadSaved={onDownloadSaved}/>;
+  if(view.type==='rom') return <RomDetailView rom={view.rom} console={view.console} onBack={()=>setView({type:'roms',console:view.console})} onDownloadSaved={onDownloadSaved} onRequireAuth={onRequireAuth}/>;
   if(view.type==='roms') return <RomListView console={view.console} onSelectRom={rom=>setView({type:'rom',console:view.console,rom})} onBack={()=>setView({type:'list'})}/>;
   return (
     <div style={{ padding:24,flex:1,overflowY:'auto' }}>
@@ -998,7 +1094,7 @@ function JuegosRomsSection({ customConsoles, onDownloadSaved }: { customConsoles
 export default function App() {
   const [splash, setSplash] = useState(true);
   const [currentUser, setCurrentUser] = useState<UserSession | null>(loadUserSession);
-  const [showLogin, setShowLogin] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [baseApps, setBaseApps] = useState<App[]>([]);
   const [customApps, setCustomApps] = useState<App[]>(loadCustomApps);
   const [customConsoles, setCustomConsoles] = useState<Console[]>(loadCustomConsoles);
@@ -1018,20 +1114,26 @@ export default function App() {
 
   function handleSplashDone() {
     setSplash(false);
-    if (!loadUserSession()) setShowLogin(true);
+    if (!loadUserSession()) setShowAuthModal(true);
   }
 
   function handleLogin(session: UserSession) {
     setCurrentUser(session);
-    setShowLogin(false);
-    showToast(`Bienvenido, ${session.username}! Rol: ${session.role === 'admin' ? 'Administrador' : 'Usuario'}`, 'success');
+    setShowAuthModal(false);
+    showToast(`¡Bienvenido, ${session.username}! ${session.role === 'admin' ? '(Administrador)' : ''}`, 'success');
   }
 
   function handleLogout() {
     clearUserSession();
     setCurrentUser(null);
-    setShowLogin(true);
+    setShowSettings(false);
+    setShowAuthModal(true);
     showToast('Sesión cerrada', 'info');
+  }
+
+  function requireAuth() {
+    if (!currentUser) { setShowAuthModal(true); return false; }
+    return true;
   }
 
   function refreshHistory() { setDownloadHistory(loadDownloadHistory()); }
@@ -1066,10 +1168,9 @@ export default function App() {
   return (
     <>
       {splash && <SplashScreen onDone={handleSplashDone}/>}
-      {!splash && showLogin && <LoginScreen onLogin={handleLogin}/>}
 
       <div style={{ display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden',fontFamily:'Inter,system-ui,sans-serif',background:'hsl(var(--background))',color:'hsl(var(--foreground))' }}>
-        <Titlebar online={online} onToggle={()=>{setOnline(p=>!p);setSelectedApp(null);}} search={search} onSearch={setSearch} onSettings={()=>setShowSettings(true)} downloadCount={downloadHistory.length} onOpenDownloads={()=>{ setActiveCategory('Descargas'); setSelectedApp(null); refreshHistory(); }}/>
+        <Titlebar online={online} onToggle={()=>{setOnline(p=>!p);setSelectedApp(null);}} search={search} onSearch={setSearch} onSettings={()=>{ if(currentUser) setShowSettings(true); else setShowAuthModal(true); }} downloadCount={downloadHistory.length} onOpenDownloads={()=>{ setActiveCategory('Descargas'); setSelectedApp(null); refreshHistory(); }}/>
         {/* Sub-nav */}
         <div style={{ background:'hsl(230 28% 9%)',borderBottom:'1px solid hsl(var(--border))',display:'flex',alignItems:'center',height:36,padding:'0 12px',gap:4,flexShrink:0 }}>
           <button className="btn-icon" style={{ fontSize:13 }} onClick={()=>{setSelectedApp(null);}}>← Volver</button>
@@ -1095,7 +1196,7 @@ export default function App() {
             ) : activeCategory==='Inicio' && !selectedApp ? (
               <HomeSection apps={apps} onSelectApp={selectApp} onSelectCat={selectCat}/>
             ) : activeCategory==='Juegos Roms' && !selectedApp ? (
-              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><JuegosRomsSection customConsoles={customConsoles} onDownloadSaved={refreshHistory}/></div>
+              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><JuegosRomsSection customConsoles={customConsoles} onDownloadSaved={refreshHistory} onRequireAuth={requireAuth}/></div>
             ) : activeCategory==='Descargas' && !selectedApp ? (
               <div style={{ flex:1,overflowY:'auto',padding:24 }}>
                 <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20 }}>
@@ -1140,7 +1241,7 @@ export default function App() {
                 )}
               </div>
             ) : selectedApp ? (
-              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><AppDetailView app={selectedApp} onBack={()=>setSelectedApp(null)} onDownloadSaved={refreshHistory}/></div>
+              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><AppDetailView app={selectedApp} onBack={()=>setSelectedApp(null)} onDownloadSaved={refreshHistory} onRequireAuth={requireAuth}/></div>
             ) : (
               <div style={{ flex:1,overflowY:'auto',padding:24 }}>
                 <div className="apps-grid">
@@ -1158,6 +1259,7 @@ export default function App() {
 
       {showSettings && currentUser && <SettingsPanel theme={theme} onTheme={t=>{setTheme(t);showToast(`Tema cambiado a ${THEMES.find(x=>x.id===t)?.label||t}`,'success');}} lang={lang} onLang={l=>{setLang(l);showToast(`Idioma: ${l==='es'?'Español':'English'}`,'success');}} onClose={()=>setShowSettings(false)} onAdmin={()=>{ setShowSettings(false); setShowAdmin(true); }} isAdmin={isAdmin} currentUser={currentUser} onLogout={handleLogout}/>}
       {showAdmin && <AdminPanel baseApps={baseApps} customApps={customApps} hiddenAppIds={hiddenAppIds} customConsoles={customConsoles} onUpdateApps={updated=>{setCustomApps(updated);}} onUpdateHiddenApps={ids=>{setHiddenAppIds(ids);}} onUpdateConsoles={updated=>{setCustomConsoles(updated);}} onClose={()=>setShowAdmin(false)}/>}
+      {showAuthModal && <AuthModal onLogin={handleLogin} onClose={()=>setShowAuthModal(false)}/>}
       <ToastContainer/>
     </>
   );
