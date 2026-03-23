@@ -835,9 +835,98 @@ function DevCard({ label, value, color }: { label:string; value:string; color:st
     </div>
   );
 }
+// ─── Lightbox ─────────────────────────────────────────────────────────────────
+function Lightbox({ items, startIdx, onClose, accentColor }: { items: MediaItem[]; startIdx: number; onClose: () => void; accentColor: string }) {
+  const [idx, setIdx] = useState(startIdx);
+  const [closing, setClosing] = useState(false);
+  const total = items.length;
+  const item = items[idx];
+
+  const close = useCallback(() => {
+    setClosing(true);
+    setTimeout(() => onClose(), 200);
+  }, [onClose]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+      if (e.key === 'ArrowRight') setIdx(i => (i + 1) % total);
+      if (e.key === 'ArrowLeft') setIdx(i => (i - 1 + total) % total);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [close, total]);
+
+  return (
+    <div
+      className={closing ? 'lb-backdrop-out' : 'lb-backdrop'}
+      onClick={close}
+      style={{ position:'fixed',inset:0,zIndex:1200,background:'rgba(0,0,0,.88)',backdropFilter:'blur(18px)',display:'flex',alignItems:'center',justifyContent:'center' }}>
+
+      {/* Content box */}
+      <div
+        className={closing ? 'lb-content-out' : 'lb-content'}
+        onClick={e => e.stopPropagation()}
+        style={{ position:'relative',maxWidth:'90vw',maxHeight:'90vh',width:'auto',display:'flex',flexDirection:'column',alignItems:'center',gap:14 }}>
+
+        {/* Close button */}
+        <button onClick={close}
+          style={{ position:'absolute',top:-14,right:-14,zIndex:10,width:36,height:36,borderRadius:'50%',background:'rgba(255,255,255,.12)',border:'1px solid rgba(255,255,255,.2)',color:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontFamily:'inherit',backdropFilter:'blur(8px)',transition:'background .15s' }}
+          onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.background='rgba(255,255,255,.22)'}
+          onMouseLeave={e=>(e.currentTarget as HTMLButtonElement).style.background='rgba(255,255,255,.12)'}>
+          ✕
+        </button>
+
+        {/* Media */}
+        <div style={{ borderRadius:'1rem',overflow:'hidden',boxShadow:'0 24px 80px rgba(0,0,0,.7)',maxWidth:'85vw',maxHeight:'80vh',background:'#0a0a14',display:'flex',alignItems:'center',justifyContent:'center' }}>
+          {item.type === 'video' && item.videoId
+            ? <iframe
+                key={item.videoId}
+                src={`https://www.youtube.com/embed/${item.videoId}?rel=0&modestbranding=1&autoplay=1`}
+                title="video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{ width:'min(900px,80vw)',height:'min(506px,45vw)',border:'none',display:'block' }}/>
+            : item.type === 'screen' && item.src
+              ? <img src={item.src} alt={item.label} style={{ maxWidth:'85vw',maxHeight:'80vh',objectFit:'contain',display:'block' }}/>
+              : <div style={{ width:320,height:240,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,color:'rgba(255,255,255,.4)' }}>
+                  <span style={{ fontSize:'4rem' }}>{item.emoji||'🎬'}</span>
+                  <span style={{ fontSize:14 }}>{item.label}</span>
+                </div>}
+        </div>
+
+        {/* Navigation — only if more than one item */}
+        {total > 1 && (
+          <div style={{ display:'flex',alignItems:'center',gap:16 }}>
+            <button onClick={()=>setIdx(i=>(i-1+total)%total)}
+              style={{ width:36,height:36,borderRadius:'50%',border:'1px solid rgba(255,255,255,.2)',background:'rgba(255,255,255,.08)',color:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(8px)' }}>
+              <Icon name="arrowLeft" size={15}/>
+            </button>
+            <div style={{ display:'flex',gap:6 }}>
+              {items.map((_,i)=>(
+                <span key={i} onClick={()=>setIdx(i)} style={{ width:i===idx?20:7,height:7,borderRadius:4,background:i===idx?accentColor:'rgba(255,255,255,.25)',cursor:'pointer',display:'block',transition:'all .2s' }}/>
+              ))}
+            </div>
+            <button onClick={()=>setIdx(i=>(i+1)%total)}
+              style={{ width:36,height:36,borderRadius:'50%',border:'1px solid rgba(255,255,255,.2)',background:'rgba(255,255,255,.08)',color:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(8px)' }}>
+              <Icon name="arrowRight" size={15}/>
+            </button>
+          </div>
+        )}
+
+        {/* Label + counter */}
+        <div style={{ fontSize:12,color:'rgba(255,255,255,.4)',fontWeight:500,textAlign:'center' }}>
+          {item.label} &nbsp;·&nbsp; {idx+1} / {total}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GamingDetailLayout({ onBack, backLabel, coverEmoji, coverBg, coverUrl, title, genres, description, platform, ratingNum, reviews, language, releaseDate, size, developer, publisher, accentColor, actionLabel, actionIcon, onAction, actionPending, actionProgress, secondaryLabel, secondaryIcon, onSecondary, extraPanel, mediaItems }:
   { onBack:()=>void; backLabel:string; coverEmoji:string; coverBg:string; coverUrl?:string; title:string; genres:string[]; description:string; platform:string; ratingNum:number; reviews:number; language:string; releaseDate:string; size:string; developer:string; publisher:string; accentColor:string; actionLabel:string; actionIcon:string; onAction:()=>void; actionPending:boolean; actionProgress:number; secondaryLabel?:string; secondaryIcon?:string; onSecondary?:()=>void; extraPanel?:React.ReactNode; mediaItems:MediaItem[]; }) {
   const [mediaIdx, setMediaIdx] = useState(0);
+  const [lightboxIdx, setLightboxIdx] = useState<number|null>(null);
   const total = mediaItems.length;
   const active = mediaItems[mediaIdx];
   return (

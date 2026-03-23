@@ -465,6 +465,28 @@
 }
 .cat-tile:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,.35); }
 
+/* Lightbox animations */
+@keyframes lbBackdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes lbBackdropOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes lbContentIn {
+  from { transform: scale(.82) translateY(18px); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes lbContentOut {
+  from { transform: scale(1) translateY(0); opacity: 1; }
+  to   { transform: scale(.82) translateY(18px); opacity: 0; }
+}
+.lb-backdrop        { animation: lbBackdropIn  .22s cubic-bezier(.22,1,.36,1) forwards; }
+.lb-backdrop-out    { animation: lbBackdropOut .2s  ease-in forwards; }
+.lb-content         { animation: lbContentIn   .26s cubic-bezier(.22,1,.36,1) forwards; }
+.lb-content-out     { animation: lbContentOut  .2s  ease-in forwards; }
+
 /* Settings panel slide-in */
 @keyframes settingsSlideIn {
   from { transform: translateX(100%); opacity: 0; }
