@@ -169,12 +169,106 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+const USER_SESSION_KEY = 'appstore_user_session';
+interface UserSession { username: string; email: string; role: 'admin' | 'user' }
+function loadUserSession(): UserSession | null {
+  try { return JSON.parse(localStorage.getItem(USER_SESSION_KEY) || 'null'); } catch { return null; }
+}
+function saveUserSession(session: UserSession) {
+  localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
+}
+function clearUserSession() {
+  localStorage.removeItem(USER_SESSION_KEY);
+}
+const ADMIN_USERS = ['solaez', 'unknown'];
+
+function LoginScreen({ onLogin }: { onLogin: (session: UserSession) => void }) {
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!username.trim() || !email.trim() || !password.trim()) {
+      setError('Por favor completa todos los campos.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError('Por favor ingresa un correo válido.');
+      return;
+    }
+    if (password.length < 4) {
+      setError('La contraseña debe tener al menos 4 caracteres.');
+      return;
+    }
+    setLoading(true);
+    setTimeout(() => {
+      const role: 'admin' | 'user' = ADMIN_USERS.includes(username.trim().toLowerCase()) ? 'admin' : 'user';
+      const session: UserSession = { username: username.trim(), email: email.trim(), role };
+      saveUserSession(session);
+      onLogin(session);
+      setLoading(false);
+    }, 600);
+  }
+
+  const inputStyle: React.CSSProperties = {
+    background: 'hsl(var(--muted))', border: '1px solid hsl(var(--border))', borderRadius: '.625rem',
+    color: 'hsl(var(--foreground))', padding: '10px 14px', width: '100%', outline: 'none',
+    fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box',
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'hsl(var(--background))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,.025) 1px, transparent 1px)', backgroundSize: '24px 24px', pointerEvents: 'none' }}/>
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 400, height: 400, background: 'radial-gradient(circle, hsl(var(--primary)/.15), transparent 70%)', pointerEvents: 'none' }}/>
+      <div style={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '1.25rem', padding: '36px 32px', width: '100%', maxWidth: 380, position: 'relative', zIndex: 1, boxShadow: '0 24px 60px rgba(0,0,0,.5)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ width: 60, height: 60, borderRadius: '1rem', background: 'linear-gradient(135deg,hsl(var(--primary)),hsl(var(--accent)))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', margin: '0 auto 14px', boxShadow: '0 0 40px hsl(var(--primary)/.3)' }}>🚀</div>
+          <div style={{ fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-.01em' }}>AppStore XD</div>
+          <div style={{ fontSize: 13, color: 'hsl(var(--muted-foreground))', marginTop: 4 }}>Inicia sesión para continuar</div>
+        </div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--foreground))' }}>Usuario</label>
+            <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Ingresa tu usuario" style={inputStyle} autoComplete="username"/>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--foreground))' }}>Correo electrónico</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@ejemplo.com" style={inputStyle} autoComplete="email"/>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--foreground))' }}>Contraseña</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} autoComplete="current-password"/>
+          </div>
+          {error && (
+            <div style={{ background: 'hsl(0 80% 50%/.15)', border: '1px solid hsl(0 80% 50%/.3)', borderRadius: '.625rem', padding: '8px 12px', fontSize: 13, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Icon name="x" size={14}/>{error}
+            </div>
+          )}
+          <button type="submit" disabled={loading}
+            style={{ marginTop: 4, width: '100%', background: 'linear-gradient(135deg,hsl(var(--primary)),hsl(var(--accent)))', border: 'none', borderRadius: '.75rem', padding: '12px 16px', cursor: loading ? 'not-allowed' : 'pointer', color: 'white', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, opacity: loading ? .7 : 1, transition: 'opacity .15s' }}>
+            {loading ? 'Ingresando...' : 'Ingresar'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Settings Panel ───────────────────────────────────────────────────────────
 interface SettingsProps {
   theme: Theme; onTheme: (t: Theme) => void;
   lang: Language; onLang: (l: Language) => void;
   onClose: () => void;
   onAdmin: () => void;
+  isAdmin: boolean;
+  currentUser: UserSession;
+  onLogout: () => void;
 }
 const THEMES: { id: Theme; label: string; color: string; icon: string }[] = [
   { id:'default', label:'Oscuro', color:'hsl(250 80% 65%)', icon:'moon' },
@@ -183,7 +277,7 @@ const THEMES: { id: Theme; label: string; color: string; icon: string }[] = [
   { id:'forest',  label:'Bosque', color:'hsl(145 65% 50%)', icon:'zap' },
   { id:'fire',    label:'Fuego',  color:'hsl(20 90% 55%)',  icon:'flame' },
 ];
-function SettingsPanel({ theme, onTheme, lang, onLang, onClose, onAdmin }: SettingsProps) {
+function SettingsPanel({ theme, onTheme, lang, onLang, onClose, onAdmin, isAdmin, currentUser, onLogout }: SettingsProps) {
   return (
     <>
       <div onClick={onClose} style={{ position:'fixed',inset:0,background:'rgba(0,0,0,.5)',backdropFilter:'blur(4px)',zIndex:500 }}/>
@@ -193,8 +287,11 @@ function SettingsPanel({ theme, onTheme, lang, onLang, onClose, onAdmin }: Setti
           <div style={{ display:'flex',alignItems:'center',gap:10 }}>
             <div style={{ width:38,height:38,borderRadius:'50%',background:'hsl(var(--muted))',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.1rem' }}>👤</div>
             <div>
-              <div style={{ fontWeight:700,fontSize:15 }}>Usuario</div>
-              <div style={{ fontSize:12,color:'hsl(var(--muted-foreground))' }}>usuario@local</div>
+              <div style={{ display:'flex',alignItems:'center',gap:6 }}>
+                <span style={{ fontWeight:700,fontSize:15 }}>{currentUser.username}</span>
+                {isAdmin && <span style={{ fontSize:10,fontWeight:700,background:'hsl(var(--primary)/.2)',color:'hsl(var(--primary))',padding:'1px 7px',borderRadius:20,border:'1px solid hsl(var(--primary)/.3)' }}>ADMIN</span>}
+              </div>
+              <div style={{ fontSize:12,color:'hsl(var(--muted-foreground))' }}>{currentUser.email}</div>
             </div>
           </div>
           <button onClick={onClose} className="btn-icon"><Icon name="x" size={18}/></button>
@@ -251,7 +348,8 @@ function SettingsPanel({ theme, onTheme, lang, onLang, onClose, onAdmin }: Setti
             </div>
           </section>
 
-          {/* Manage content */}
+          {/* Manage content — admin only */}
+          {isAdmin && (
           <section>
             <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:12 }}>
               <Icon name="folder" size={16}/>
@@ -269,6 +367,7 @@ function SettingsPanel({ theme, onTheme, lang, onLang, onClose, onAdmin }: Setti
               <span style={{ marginLeft:'auto',opacity:.6,fontSize:18 }}>→</span>
             </button>
           </section>
+          )}
 
           {/* Clear cache */}
           <section>
@@ -284,6 +383,17 @@ function SettingsPanel({ theme, onTheme, lang, onLang, onClose, onAdmin }: Setti
                 Buscar actualizaciones
               </button>
             </div>
+          </section>
+
+          {/* Logout */}
+          <section>
+            <button onClick={()=>{ onClose(); onLogout(); }}
+              style={{ width:'100%',background:'hsl(0 80% 50%/.15)',border:'1px solid hsl(0 80% 50%/.3)',borderRadius:'.875rem',padding:'12px 16px',cursor:'pointer',display:'flex',alignItems:'center',gap:10,color:'#ef4444',fontFamily:'inherit',fontSize:14,fontWeight:600,transition:'background .15s' }}
+              onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.background='hsl(0 80% 50%/.25)'}
+              onMouseLeave={e=>(e.currentTarget as HTMLButtonElement).style.background='hsl(0 80% 50%/.15)'}>
+              <Icon name="lock" size={16}/>
+              Cerrar sesión
+            </button>
           </section>
         </div>
       </div>
@@ -887,6 +997,8 @@ function JuegosRomsSection({ customConsoles, onDownloadSaved }: { customConsoles
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [splash, setSplash] = useState(true);
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(loadUserSession);
+  const [showLogin, setShowLogin] = useState(false);
   const [baseApps, setBaseApps] = useState<App[]>([]);
   const [customApps, setCustomApps] = useState<App[]>(loadCustomApps);
   const [customConsoles, setCustomConsoles] = useState<Console[]>(loadCustomConsoles);
@@ -901,6 +1013,26 @@ export default function App() {
   const [lang, setLang] = useState<Language>('es');
   const [downloadHistory, setDownloadHistory] = useState<DownloadRecord[]>(loadDownloadHistory);
   const [hiddenAppIds, setHiddenAppIds] = useState<number[]>(loadHiddenAppIds);
+
+  const isAdmin = currentUser?.role === 'admin';
+
+  function handleSplashDone() {
+    setSplash(false);
+    if (!loadUserSession()) setShowLogin(true);
+  }
+
+  function handleLogin(session: UserSession) {
+    setCurrentUser(session);
+    setShowLogin(false);
+    showToast(`Bienvenido, ${session.username}! Rol: ${session.role === 'admin' ? 'Administrador' : 'Usuario'}`, 'success');
+  }
+
+  function handleLogout() {
+    clearUserSession();
+    setCurrentUser(null);
+    setShowLogin(true);
+    showToast('Sesión cerrada', 'info');
+  }
 
   function refreshHistory() { setDownloadHistory(loadDownloadHistory()); }
 
@@ -933,7 +1065,8 @@ export default function App() {
 
   return (
     <>
-      {splash && <SplashScreen onDone={()=>setSplash(false)}/>}
+      {splash && <SplashScreen onDone={handleSplashDone}/>}
+      {!splash && showLogin && <LoginScreen onLogin={handleLogin}/>}
 
       <div style={{ display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden',fontFamily:'Inter,system-ui,sans-serif',background:'hsl(var(--background))',color:'hsl(var(--foreground))' }}>
         <Titlebar online={online} onToggle={()=>{setOnline(p=>!p);setSelectedApp(null);}} search={search} onSearch={setSearch} onSettings={()=>setShowSettings(true)} downloadCount={downloadHistory.length} onOpenDownloads={()=>{ setActiveCategory('Descargas'); setSelectedApp(null); refreshHistory(); }}/>
@@ -1023,7 +1156,7 @@ export default function App() {
         </div>
       </div>
 
-      {showSettings && <SettingsPanel theme={theme} onTheme={t=>{setTheme(t);showToast(`Tema cambiado a ${THEMES.find(x=>x.id===t)?.label||t}`,'success');}} lang={lang} onLang={l=>{setLang(l);showToast(`Idioma: ${l==='es'?'Español':'English'}`,'success');}} onClose={()=>setShowSettings(false)} onAdmin={()=>{ setShowSettings(false); setShowAdmin(true); }}/>}
+      {showSettings && currentUser && <SettingsPanel theme={theme} onTheme={t=>{setTheme(t);showToast(`Tema cambiado a ${THEMES.find(x=>x.id===t)?.label||t}`,'success');}} lang={lang} onLang={l=>{setLang(l);showToast(`Idioma: ${l==='es'?'Español':'English'}`,'success');}} onClose={()=>setShowSettings(false)} onAdmin={()=>{ setShowSettings(false); setShowAdmin(true); }} isAdmin={isAdmin} currentUser={currentUser} onLogout={handleLogout}/>}
       {showAdmin && <AdminPanel baseApps={baseApps} customApps={customApps} hiddenAppIds={hiddenAppIds} customConsoles={customConsoles} onUpdateApps={updated=>{setCustomApps(updated);}} onUpdateHiddenApps={ids=>{setHiddenAppIds(ids);}} onUpdateConsoles={updated=>{setCustomConsoles(updated);}} onClose={()=>setShowAdmin(false)}/>}
       <ToastContainer/>
     </>
