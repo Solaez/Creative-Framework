@@ -569,6 +569,7 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
   const [romView, setRomView] = useState<RomSubView>('list');
   const [deleteConfirm, setDeleteConfirm] = useState<number|null>(null);
   const [appFilter, setAppFilter] = useState<'all'|'base'|'custom'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   function handleSaveApp(app: App) {
     const updated = [...customApps, app];
@@ -617,11 +618,13 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
     ...baseApps.map(a => ({ ...a, _source: 'base' as const })),
     ...customApps.map(a => ({ ...a, _source: 'custom' as const })),
   ];
+  const q = searchQuery.trim().toLowerCase();
   const visibleApps = allApps.filter(a => {
     if (appFilter === 'base') return a._source === 'base';
     if (appFilter === 'custom') return a._source === 'custom';
     return true;
-  }).filter(a => !hiddenAppIds.includes(a.id));
+  }).filter(a => a._source === 'custom' || !hiddenAppIds.includes(a.id))
+    .filter(a => !q || a.name.toLowerCase().includes(q) || (a.category||'').toLowerCase().includes(q) || (a.developer||'').toLowerCase().includes(q));
 
   function handleSaveConsole(c: Console) {
     const updated = [...customConsoles, c];
@@ -670,7 +673,7 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
           {/* Tab bar */}
           <div style={{ display:'flex',padding:'12px 24px 0',gap:4,borderBottom:'1px solid rgba(255,255,255,.07)',flexShrink:0 }}>
             {([['apps','💻 Programas'],['roms','🎮 Juegos ROM']] as [AdminTab,string][]).map(([id,label])=>(
-              <button key={id} onClick={()=>{ setTab(id); setShowAppForm(false); setRomView('list'); }}
+              <button key={id} onClick={()=>{ setTab(id); setShowAppForm(false); setRomView('list'); setSearchQuery(''); }}
                 style={{ border:'none',background:'transparent',color:tab===id?'white':'rgba(255,255,255,.4)',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:600,padding:'8px 18px',borderBottom:tab===id?'2px solid hsl(var(--primary))':'2px solid transparent',transition:'all .15s' }}>
                 {label}
               </button>
@@ -705,6 +708,22 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
                       </button>
                     </div>
 
+                    {/* Search */}
+                    <div style={{ position:'relative',marginBottom:10,flexShrink:0 }}>
+                      <span style={{ position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',fontSize:14,color:'rgba(255,255,255,.3)',pointerEvents:'none' }}>🔍</span>
+                      <input
+                        value={searchQuery}
+                        onChange={e=>setSearchQuery(e.target.value)}
+                        placeholder="Buscar por nombre, categoría o desarrollador..."
+                        style={{ ...inputStyle,paddingLeft:36,width:'100%',boxSizing:'border-box' }}
+                        onFocus={e=>(e.target as HTMLInputElement).style.borderColor='hsl(var(--primary)/.6)'}
+                        onBlur={e=>(e.target as HTMLInputElement).style.borderColor='rgba(255,255,255,.1)'}
+                      />
+                      {searchQuery&&(
+                        <button onClick={()=>setSearchQuery('')} style={{ position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:'rgba(255,255,255,.4)',cursor:'pointer',fontSize:14,padding:0,lineHeight:1 }}>✕</button>
+                      )}
+                    </div>
+
                     {/* Filter pills */}
                     <div style={{ display:'flex',gap:6,marginBottom:14,flexShrink:0 }}>
                       {(['all','base','custom'] as const).map(f=>(
@@ -717,11 +736,12 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
 
                     {visibleApps.length===0 ? (
                       <div style={{ flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:14,color:'rgba(255,255,255,.25)' }}>
-                        <div style={{ fontSize:'4rem' }}>📭</div>
+                        <div style={{ fontSize:'4rem' }}>{q ? '🔍' : '📭'}</div>
                         <div style={{ textAlign:'center' }}>
-                          <div style={{ fontSize:15,fontWeight:600,marginBottom:6 }}>No hay programas aquí</div>
-                          <div style={{ fontSize:13 }}>Haz clic en "+ Agregar programa" para empezar</div>
+                          <div style={{ fontSize:15,fontWeight:600,marginBottom:6 }}>{q ? `Sin resultados para "${searchQuery}"` : 'No hay programas aquí'}</div>
+                          <div style={{ fontSize:13 }}>{q ? 'Prueba con otro término de búsqueda' : 'Haz clic en "+ Agregar programa" para empezar'}</div>
                         </div>
+                        {q&&<button onClick={()=>setSearchQuery('')} style={{ background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.12)',borderRadius:'2rem',padding:'8px 20px',color:'rgba(255,255,255,.5)',cursor:'pointer',fontFamily:'inherit',fontSize:13 }}>Limpiar búsqueda</button>}
                       </div>
                     ) : (
                       <div style={{ flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:8 }}>
