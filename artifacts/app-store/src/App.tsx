@@ -1157,17 +1157,29 @@ function RomListView({ console: c, onSelectRom, onBack }: { console:Console; onS
 }
 
 // ─── Juegos Roms Section ──────────────────────────────────────────────────────
-type RomView = { type:'list' }|{ type:'roms'; console:Console }|{ type:'rom'; console:Console; rom:Rom };
+type RomView = { type:'list' }|{ type:'roms'; consoleId:string }|{ type:'rom'; consoleId:string; romId:string };
 function JuegosRomsSection({ baseConsoles, customConsoles, romOverrides, onDownloadSaved, onRequireAuth }: { baseConsoles: Console[]|null; customConsoles: Console[]; romOverrides: RomOverrides; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
   const [view, setView] = useState<RomView>({ type:'list' });
   if(!baseConsoles) return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'60%',color:'hsl(var(--muted-foreground))' }}>Cargando consolas...</div>;
+
+  // Always derive current data fresh (with latest overrides applied) at render time
   const applyOverrides = (roms: Rom[]) => roms.map(r => romOverrides[r.id] ? { ...r, ...romOverrides[r.id] } : r);
   const allConsoles = [
     ...baseConsoles.map(c => ({ ...c, roms: applyOverrides(c.roms) })),
     ...customConsoles,
   ];
-  if(view.type==='rom') return <RomDetailView rom={view.rom} console={view.console} onBack={()=>setView({type:'roms',console:view.console})} onDownloadSaved={onDownloadSaved} onRequireAuth={onRequireAuth}/>;
-  if(view.type==='roms') return <RomListView console={view.console} onSelectRom={rom=>setView({type:'rom',console:view.console,rom})} onBack={()=>setView({type:'list'})}/>;
+
+  if(view.type==='rom') {
+    const currentConsole = allConsoles.find(c => c.id === view.consoleId);
+    const currentRom = currentConsole?.roms.find(r => r.id === view.romId);
+    if(!currentConsole || !currentRom) { setView({type:'list'}); return null; }
+    return <RomDetailView rom={currentRom} console={currentConsole} onBack={()=>setView({type:'roms', consoleId:view.consoleId})} onDownloadSaved={onDownloadSaved} onRequireAuth={onRequireAuth}/>;
+  }
+  if(view.type==='roms') {
+    const currentConsole = allConsoles.find(c => c.id === view.consoleId);
+    if(!currentConsole) { setView({type:'list'}); return null; }
+    return <RomListView console={currentConsole} onSelectRom={rom=>setView({type:'rom', consoleId:currentConsole.id, romId:rom.id})} onBack={()=>setView({type:'list'})}/>;
+  }
   return (
     <div style={{ padding:24,flex:1,overflowY:'auto' }}>
       <div style={{ marginBottom:20 }}>
@@ -1176,7 +1188,7 @@ function JuegosRomsSection({ baseConsoles, customConsoles, romOverrides, onDownl
         {customConsoles.length>0&&<span style={{ fontSize:12,color:'hsl(var(--primary))',marginTop:4,display:'inline-block' }}>+ {customConsoles.length} consola(s) personalizada(s)</span>}
       </div>
       <div style={{ display:'flex',flexDirection:'column',gap:14 }}>
-        {allConsoles.map(c=><ConsoleBanner key={c.id} console={c} onClick={()=>setView({type:'roms',console:c})}/>)}
+        {allConsoles.map(c=><ConsoleBanner key={c.id} console={c} onClick={()=>setView({type:'roms', consoleId:c.id})}/>)}
       </div>
     </div>
   );
