@@ -1158,26 +1158,19 @@ function RomListView({ console: c, onSelectRom, onBack }: { console:Console; onS
 
 // ─── Juegos Roms Section ──────────────────────────────────────────────────────
 type RomView = { type:'list' }|{ type:'roms'; consoleId:string }|{ type:'rom'; consoleId:string; romId:string };
-function JuegosRomsSection({ baseConsoles, customConsoles, romOverrides, onDownloadSaved, onRequireAuth }: { baseConsoles: Console[]|null; customConsoles: Console[]; romOverrides: RomOverrides; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
+function JuegosRomsSection({ allConsoles, onDownloadSaved, onRequireAuth }: { allConsoles: Console[]; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
   const [view, setView] = useState<RomView>({ type:'list' });
-  if(!baseConsoles) return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'60%',color:'hsl(var(--muted-foreground))' }}>Cargando consolas...</div>;
-
-  // Always derive current data fresh (with latest overrides applied) at render time
-  const applyOverrides = (roms: Rom[]) => roms.map(r => romOverrides[r.id] ? { ...r, ...romOverrides[r.id] } : r);
-  const allConsoles = [
-    ...baseConsoles.map(c => ({ ...c, roms: applyOverrides(c.roms) })),
-    ...customConsoles,
-  ];
+  const customCount = allConsoles.filter(c => !c.id.startsWith('wii') && !c.id.startsWith('gc') && !c.id.startsWith('nds') && !c.id.startsWith('gba') && !c.id.startsWith('psp') && !c.id.startsWith('ps') && !c.id.startsWith('n64') && !c.id.startsWith('snes') && !c.id.startsWith('nes') && !c.id.startsWith('gb')).length;
 
   if(view.type==='rom') {
     const currentConsole = allConsoles.find(c => c.id === view.consoleId);
     const currentRom = currentConsole?.roms.find(r => r.id === view.romId);
-    if(!currentConsole || !currentRom) { setView({type:'list'}); return null; }
+    if(!currentConsole || !currentRom) return null;
     return <RomDetailView rom={currentRom} console={currentConsole} onBack={()=>setView({type:'roms', consoleId:view.consoleId})} onDownloadSaved={onDownloadSaved} onRequireAuth={onRequireAuth}/>;
   }
   if(view.type==='roms') {
     const currentConsole = allConsoles.find(c => c.id === view.consoleId);
-    if(!currentConsole) { setView({type:'list'}); return null; }
+    if(!currentConsole) return null;
     return <RomListView console={currentConsole} onSelectRom={rom=>setView({type:'rom', consoleId:currentConsole.id, romId:rom.id})} onBack={()=>setView({type:'list'})}/>;
   }
   return (
@@ -1185,7 +1178,7 @@ function JuegosRomsSection({ baseConsoles, customConsoles, romOverrides, onDownl
       <div style={{ marginBottom:20 }}>
         <h2 style={{ margin:'0 0 4px',fontSize:'1.3rem',fontWeight:700 }}>Juegos Roms</h2>
         <p style={{ color:'hsl(var(--muted-foreground))',fontSize:14,margin:0 }}>Selecciona una consola para ver sus juegos disponibles</p>
-        {customConsoles.length>0&&<span style={{ fontSize:12,color:'hsl(var(--primary))',marginTop:4,display:'inline-block' }}>+ {customConsoles.length} consola(s) personalizada(s)</span>}
+        {customCount>0&&<span style={{ fontSize:12,color:'hsl(var(--primary))',marginTop:4,display:'inline-block' }}>+ {customCount} consola(s) personalizada(s)</span>}
       </div>
       <div style={{ display:'flex',flexDirection:'column',gap:14 }}>
         {allConsoles.map(c=><ConsoleBanner key={c.id} console={c} onClick={()=>setView({type:'roms', consoleId:c.id})}/>)}
@@ -1247,6 +1240,17 @@ export default function App() {
   // All apps = visible base JSON apps + user-created
   const visibleBaseApps = baseApps.filter(a => !hiddenAppIds.includes(a.id));
   const apps = [...visibleBaseApps, ...customApps];
+
+  // All consoles = base JSON consoles (with ROM overrides merged) + custom consoles
+  const allConsoles: Console[] = baseConsoles
+    ? [
+        ...baseConsoles.map(c => ({
+          ...c,
+          roms: c.roms.map(r => romOverrides[r.id] ? { ...r, ...romOverrides[r.id] } : r),
+        })),
+        ...customConsoles,
+      ]
+    : [];
 
   // Load base apps and base consoles from JSON
   useEffect(() => {
