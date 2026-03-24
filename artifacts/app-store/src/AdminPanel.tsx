@@ -23,6 +23,13 @@ function saveCustomApps(apps: App[]) { localStorage.setItem(CUSTOM_APPS_KEY, JSO
 function saveCustomConsoles(consoles: Console[]) { localStorage.setItem(CUSTOM_ROMS_KEY, JSON.stringify(consoles)); }
 function saveHiddenAppIds(ids: number[]) { localStorage.setItem(HIDDEN_APPS_KEY, JSON.stringify(ids)); }
 
+const ROM_OVERRIDES_KEY = 'appstore-rom-overrides';
+type RomOverrides = Record<string, Rom>;
+export function loadRomOverrides(): RomOverrides {
+  try { return JSON.parse(localStorage.getItem(ROM_OVERRIDES_KEY) || '{}'); } catch { return {}; }
+}
+function saveRomOverrides(overrides: RomOverrides) { localStorage.setItem(ROM_OVERRIDES_KEY, JSON.stringify(overrides)); }
+
 // ─── Small helpers ────────────────────────────────────────────────────────────
 function Field({ label, hint, children }: { label:string; hint?:string; children:React.ReactNode }) {
   return (
@@ -446,15 +453,18 @@ function ConsoleForm({ onSave, onCancel }: { onSave:(c:Console)=>void; onCancel:
   );
 }
 
-function RomForm({ console: c, onSave, onCancel }: { console:Console; onSave:(r:Rom)=>void; onCancel:()=>void }) {
-  const [form, setForm] = useState<Partial<Rom>>(EMPTY_ROM());
-  const [instructionsText, setInstructionsText] = useState('');
+function RomForm({ console: c, onSave, onCancel, initialData }: { console?:Console; onSave:(r:Rom)=>void; onCancel:()=>void; initialData?:Rom }) {
+  const [form, setForm] = useState<Partial<Rom>>(initialData ?? EMPTY_ROM());
+  const [instructionsText, setInstructionsText] = useState(initialData?.instructions?.join('\n') ?? '');
+  const [screenshotUrls, setScreenshotUrls] = useState<string[]>(initialData?.screenshots?.length ? initialData.screenshots : ['']);
+  const [step, setStep] = useState(0);
   const set = (k: keyof Rom, v: unknown) => setForm(p => ({ ...p, [k]: v }));
+  const isEdit = !!initialData;
 
   function handleSave() {
     if (!form.title) return;
     const rom: Rom = {
-      id: `rom-${Date.now()}`,
+      id: initialData?.id ?? `rom-${Date.now()}`,
       title: form.title!,
       region: form.region || 'USA',
       size: form.size || '—',
@@ -465,8 +475,8 @@ function RomForm({ console: c, onSave, onCancel }: { console:Console; onSave:(r:
       description: form.description || '',
       developer: form.developer || 'Desconocido',
       downloadUrl: form.downloadUrl || '',
-      coverUrl: '',
-      screenshots: [],
+      coverUrl: form.coverUrl || '',
+      screenshots: screenshotUrls.filter(u => u.trim() !== ''),
       videoId: form.videoId || '',
       instructions: instructionsText.split('\n').filter(Boolean),
     };
@@ -475,73 +485,163 @@ function RomForm({ console: c, onSave, onCancel }: { console:Console; onSave:(r:
 
   const regions = ['USA','EUR','JAP','ESP','MULTI'];
   const genres = ['Acción','Aventura','RPG','Plataformas','Deportes','Lucha','Racing','Puzzle','Estrategia','Terror','Otro'];
+  const steps = ['Básico','Media','Descarga'];
 
   return (
     <div style={{ display:'flex',flexDirection:'column',height:'100%' }}>
-      <div style={{ marginBottom:12,padding:'8px 12px',background:'rgba(255,255,255,.04)',borderRadius:'.75rem',border:'1px solid rgba(255,255,255,.08)',fontSize:12,color:'rgba(255,255,255,.5)',display:'flex',alignItems:'center',gap:6 }}>
-        <span>🎮</span> Consola: <strong style={{ color:'white' }}>{c.name}</strong> · Emulador: {c.emulator}
+      {c&&(
+        <div style={{ marginBottom:12,padding:'8px 12px',background:'rgba(255,255,255,.04)',borderRadius:'.75rem',border:'1px solid rgba(255,255,255,.08)',fontSize:12,color:'rgba(255,255,255,.5)',display:'flex',alignItems:'center',gap:6,flexShrink:0 }}>
+          <span>🎮</span> Consola: <strong style={{ color:'white' }}>{c.name}</strong> · {c.emulator}
+        </div>
+      )}
+
+      {/* Step tabs */}
+      <div style={{ display:'flex',gap:0,marginBottom:18,background:'rgba(255,255,255,.04)',borderRadius:'2rem',padding:3,border:'1px solid rgba(255,255,255,.08)',flexShrink:0 }}>
+        {steps.map((s,i)=>(
+          <button key={s} onClick={()=>setStep(i)}
+            style={{ flex:1,border:'none',borderRadius:'2rem',padding:'7px 12px',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',
+              background:step===i?'linear-gradient(135deg,#e52d6a,#f97316)':'transparent',
+              color:step===i?'white':'rgba(255,255,255,.45)',transition:'all .15s' }}>
+            {i+1}. {s}
+          </button>
+        ))}
       </div>
 
       <div style={{ flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:14 }}>
-        <Field label="Título del juego *">
-          <Input value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ej: Gran Turismo 3"/>
-        </Field>
 
-        <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
-          <Field label="Región">
-            <Select value={form.region} onChange={e=>set('region',e.target.value)}>
-              {regions.map(r=><option key={r} value={r}>{r}</option>)}
-            </Select>
-          </Field>
-          <Field label="Género">
-            <Select value={form.genre} onChange={e=>set('genre',e.target.value)}>
-              {genres.map(g=><option key={g} value={g}>{g}</option>)}
-            </Select>
-          </Field>
-          <Field label="Año">
-            <Input type="number" value={form.year} onChange={e=>set('year',parseInt(e.target.value))} min={1970} max={2030}/>
-          </Field>
-          <Field label="Jugadores">
-            <Select value={form.players} onChange={e=>set('players',e.target.value)}>
-              {['1','2','3','4','2-4','1-2','1-4'].map(p=><option key={p} value={p}>{p}</option>)}
-            </Select>
-          </Field>
-          <Field label="Tamaño">
-            <Input value={form.size} onChange={e=>set('size',e.target.value)} placeholder="Ej: 1.4 GB"/>
-          </Field>
-          <Field label="Rating (1-5 estrellas)">
-            <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-              <input type="range" min={1} max={5} step={0.5} value={form.rating} onChange={e=>set('rating',parseFloat(e.target.value))} style={{ flex:1,accentColor:'#f59e0b' }}/>
-              <span style={{ fontSize:13,fontWeight:700,color:'#f59e0b',minWidth:24 }}>{form.rating}★</span>
+        {/* ── STEP 0: BÁSICO ── */}
+        {step===0&&(
+          <>
+            <Field label="Título del juego *">
+              <Input value={form.title} onChange={e=>set('title',e.target.value)} placeholder="Ej: Gran Turismo 3"/>
+            </Field>
+            <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12 }}>
+              <Field label="Región">
+                <Select value={form.region} onChange={e=>set('region',e.target.value)}>
+                  {regions.map(r=><option key={r} value={r}>{r}</option>)}
+                </Select>
+              </Field>
+              <Field label="Género">
+                <Select value={form.genre} onChange={e=>set('genre',e.target.value)}>
+                  {genres.map(g=><option key={g} value={g}>{g}</option>)}
+                </Select>
+              </Field>
+              <Field label="Año">
+                <Input type="number" value={form.year} onChange={e=>set('year',parseInt(e.target.value))} min={1970} max={2030}/>
+              </Field>
+              <Field label="Jugadores">
+                <Select value={form.players} onChange={e=>set('players',e.target.value)}>
+                  {['1','2','3','4','2-4','1-2','1-4'].map(p=><option key={p} value={p}>{p}</option>)}
+                </Select>
+              </Field>
+              <Field label="Tamaño">
+                <Input value={form.size} onChange={e=>set('size',e.target.value)} placeholder="Ej: 1.4 GB"/>
+              </Field>
+              <Field label="Rating (1-5 estrellas)">
+                <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+                  <input type="range" min={1} max={5} step={0.5} value={form.rating} onChange={e=>set('rating',parseFloat(e.target.value))} style={{ flex:1,accentColor:'#f59e0b' }}/>
+                  <span style={{ fontSize:13,fontWeight:700,color:'#f59e0b',minWidth:24 }}>{form.rating}★</span>
+                </div>
+              </Field>
             </div>
-          </Field>
-        </div>
+            <Field label="Desarrollador">
+              <Input value={form.developer} onChange={e=>set('developer',e.target.value)} placeholder="Ej: Nintendo EAD"/>
+            </Field>
+            <Field label="Descripción">
+              <Textarea value={form.description} onChange={e=>set('description',e.target.value)} placeholder="Descripción del juego..."/>
+            </Field>
+          </>
+        )}
 
-        <Field label="Desarrollador">
-          <Input value={form.developer} onChange={e=>set('developer',e.target.value)} placeholder="Ej: Sony Interactive"/>
-        </Field>
-        <Field label="Descripción">
-          <Textarea value={form.description} onChange={e=>set('description',e.target.value)} placeholder="Descripción del juego..."/>
-        </Field>
-        <Field label="URL de descarga">
-          <Input type="url" value={form.downloadUrl} onChange={e=>set('downloadUrl',e.target.value)} placeholder="https://..."/>
-        </Field>
-        <Field label="Video ID de YouTube (Gameplay)">
-          <Input value={form.videoId} onChange={e=>set('videoId',e.target.value)} placeholder="dQw4w9WgXcQ"/>
-        </Field>
-        <Field label="Instrucciones" hint="Una por línea">
-          <Textarea value={instructionsText} onChange={e=>setInstructionsText(e.target.value)} placeholder={`Descargar el archivo ROM\nAbrir en ${c.emulator}\nConfigurar controles`} rows={4}/>
-        </Field>
+        {/* ── STEP 1: MEDIA ── */}
+        {step===1&&(
+          <>
+            <Field label="Imagen de portada (URL)" hint="URL directa a JPG, PNG o WebP">
+              <Input type="url" value={form.coverUrl||''} onChange={e=>set('coverUrl',e.target.value)} placeholder="https://ejemplo.com/portada.jpg"/>
+              {form.coverUrl&&(
+                <div style={{ marginTop:8,borderRadius:'.75rem',overflow:'hidden',border:'1px solid rgba(255,255,255,.1)',height:140,background:'#0a0a14' }}>
+                  <img src={form.coverUrl} alt="Portada" style={{ width:'100%',height:'100%',objectFit:'cover' }}
+                    onError={e=>{ (e.target as HTMLImageElement).style.display='none'; }}/>
+                </div>
+              )}
+            </Field>
+            <Field label="Video de YouTube (Gameplay ID)" hint="Solo el ID del video, ej: pAOe4UVZ6Cg">
+              <Input value={form.videoId||''} onChange={e=>set('videoId',e.target.value)} placeholder="pAOe4UVZ6Cg"/>
+              {form.videoId&&(
+                <div style={{ marginTop:8,borderRadius:'.75rem',overflow:'hidden',border:'1px solid rgba(255,255,255,.1)',aspectRatio:'16/9',background:'#0a0a14' }}>
+                  <iframe src={`https://www.youtube.com/embed/${form.videoId}?rel=0&modestbranding=1`} title="preview" allowFullScreen style={{ width:'100%',height:'100%',border:'none' }}/>
+                </div>
+              )}
+            </Field>
+            <Field label="Capturas de pantalla" hint="URL directa a cada imagen">
+              <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                {screenshotUrls.map((url,i)=>(
+                  <div key={i} style={{ display:'flex',flexDirection:'column',gap:6 }}>
+                    <div style={{ display:'flex',gap:8,alignItems:'center' }}>
+                      <Input type="url" value={url} onChange={e=>{ const u=[...screenshotUrls]; u[i]=e.target.value; setScreenshotUrls(u); }} placeholder={`https://ejemplo.com/captura${i+1}.jpg`}/>
+                      {screenshotUrls.length>1&&(
+                        <button onClick={()=>setScreenshotUrls(p=>p.filter((_,j)=>j!==i))}
+                          style={{ width:30,height:30,flexShrink:0,borderRadius:'50%',background:'rgba(239,68,68,.15)',border:'1px solid rgba(239,68,68,.3)',color:'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14 }}>✕</button>
+                      )}
+                    </div>
+                    {url&&(
+                      <div style={{ borderRadius:'.625rem',overflow:'hidden',border:'1px solid rgba(255,255,255,.08)',height:90,background:'#0a0a14' }}>
+                        <img src={url} alt={`Captura ${i+1}`} style={{ width:'100%',height:'100%',objectFit:'cover' }}
+                          onError={e=>{ (e.target as HTMLImageElement).style.display='none'; }}/>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <button onClick={()=>setScreenshotUrls(p=>[...p,''])}
+                  style={{ background:'rgba(255,255,255,.05)',border:'1px dashed rgba(255,255,255,.15)',borderRadius:'.625rem',padding:'8px',color:'rgba(255,255,255,.4)',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:500 }}>
+                  + Agregar captura
+                </button>
+              </div>
+            </Field>
+          </>
+        )}
+
+        {/* ── STEP 2: DESCARGA ── */}
+        {step===2&&(
+          <>
+            <Field label="URL de descarga" hint="Enlace directo al archivo ROM">
+              <Input type="url" value={form.downloadUrl||''} onChange={e=>set('downloadUrl',e.target.value)} placeholder="https://archive.org/..."/>
+            </Field>
+            <Field label="Instrucciones" hint="Una instrucción por línea">
+              <Textarea value={instructionsText} onChange={e=>setInstructionsText(e.target.value)}
+                placeholder={`Descargar el archivo ROM\nAbrir en ${c?.emulator||'el emulador'}\nConfigurar controles`} rows={5}/>
+            </Field>
+            <div style={{ background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'.875rem',padding:'14px 16px' }}>
+              <div style={{ fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'rgba(255,255,255,.3)',marginBottom:10 }}>Resumen</div>
+              <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:12 }}>
+                {[['Título',form.title||'—'],['Género',form.genre||'—'],['Año',String(form.year||'—')],['Región',form.region||'—'],['Portada',form.coverUrl?'✓ Sí':'✗ No'],['Capturas',`${screenshotUrls.filter(u=>u.trim()).length}`],['Video',form.videoId?'✓ Sí':'✗ No'],['Descarga',form.downloadUrl?'✓ Sí':'✗ No']].map(([k,v])=>(
+                  <div key={k}><span style={{ color:'rgba(255,255,255,.35)' }}>{k}: </span><span style={{ color:'white',fontWeight:500 }}>{v}</span></div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <div style={{ display:'flex',gap:10,marginTop:20,paddingTop:16,borderTop:'1px solid rgba(255,255,255,.08)',flexShrink:0 }}>
         <button onClick={onCancel} style={{ flex:1,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',borderRadius:'.875rem',padding:'10px',color:'rgba(255,255,255,.6)',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:500 }}>
           Cancelar
         </button>
-        <button onClick={handleSave} disabled={!form.title}
-          style={{ flex:2,background:!form.title?'rgba(255,255,255,.08)':'linear-gradient(135deg,#e52d6a,#f97316)',border:'none',borderRadius:'.875rem',padding:'10px 20px',color:!form.title?'rgba(255,255,255,.3)':'white',cursor:!form.title?'not-allowed':'pointer',fontFamily:'inherit',fontSize:13,fontWeight:700 }}>
-          ✓ Guardar ROM
-        </button>
+        {step>0&&(
+          <button onClick={()=>setStep(s=>s-1)} style={{ flex:1,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',borderRadius:'.875rem',padding:'10px',color:'rgba(255,255,255,.6)',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:500 }}>
+            ← Anterior
+          </button>
+        )}
+        {step<2 ? (
+          <button onClick={()=>setStep(s=>s+1)} style={{ flex:2,background:'linear-gradient(135deg,#e52d6a,#f97316)',border:'none',borderRadius:'.875rem',padding:'10px 20px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:700 }}>
+            Siguiente →
+          </button>
+        ) : (
+          <button onClick={handleSave} disabled={!form.title}
+            style={{ flex:2,background:!form.title?'rgba(255,255,255,.08)':'linear-gradient(135deg,#e52d6a,#f97316)',border:'none',borderRadius:'.875rem',padding:'10px 20px',color:!form.title?'rgba(255,255,255,.3)':'white',cursor:!form.title?'not-allowed':'pointer',fontFamily:'inherit',fontSize:13,fontWeight:700,transition:'opacity .15s' }}>
+            ✓ {isEdit ? 'Guardar cambios' : 'Guardar ROM'}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -556,13 +656,15 @@ interface AdminPanelProps {
   customApps: App[];
   hiddenAppIds: number[];
   customConsoles: Console[];
+  baseConsoles: Console[];
   onUpdateApps: (apps: App[]) => void;
   onUpdateHiddenApps: (ids: number[]) => void;
   onUpdateConsoles: (consoles: Console[]) => void;
+  onUpdateRomOverrides: (overrides: RomOverrides) => void;
   onClose: () => void;
 }
 
-export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles, onUpdateApps, onUpdateHiddenApps, onUpdateConsoles, onClose }: AdminPanelProps) {
+export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles, baseConsoles, onUpdateApps, onUpdateHiddenApps, onUpdateConsoles, onUpdateRomOverrides, onClose }: AdminPanelProps) {
   const [tab, setTab] = useState<AdminTab>('apps');
   const [showAppForm, setShowAppForm] = useState(false);
   const [editingApp, setEditingApp] = useState<App|null>(null);
@@ -570,6 +672,28 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
   const [deleteConfirm, setDeleteConfirm] = useState<number|null>(null);
   const [appFilter, setAppFilter] = useState<'all'|'base'|'custom'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [romTabFilter, setRomTabFilter] = useState<'base'|'custom'>('base');
+  const [editingBaseRom, setEditingBaseRom] = useState<{ rom: Rom; consoleId: string; consoleName: string; emulator: string } | null>(null);
+  const [expandedConsole, setExpandedConsole] = useState<string|null>(null);
+  const [romOverrides, setRomOverrides] = useState<RomOverrides>(loadRomOverrides);
+  const [romDeleteConfirm, setRomDeleteConfirm] = useState<string|null>(null);
+
+  function handleSaveRomOverride(rom: Rom) {
+    const updated = { ...romOverrides, [rom.id]: rom };
+    saveRomOverrides(updated);
+    setRomOverrides(updated);
+    onUpdateRomOverrides(updated);
+    setEditingBaseRom(null);
+  }
+
+  function handleDeleteRomOverride(romId: string) {
+    const updated = { ...romOverrides };
+    delete updated[romId];
+    saveRomOverrides(updated);
+    setRomOverrides(updated);
+    onUpdateRomOverrides(updated);
+    setRomDeleteConfirm(null);
+  }
 
   function handleSaveApp(app: App) {
     const updated = [...customApps, app];
@@ -790,15 +914,26 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
             {/* ── ROMS TAB ── */}
             {tab==='roms'&&(
               <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}>
-                {romView==='add-console' ? (
+
+                {/* Editing a base ROM */}
+                {editingBaseRom ? (
+                  <RomForm
+                    key={editingBaseRom.rom.id}
+                    initialData={editingBaseRom.rom}
+                    onSave={handleSaveRomOverride}
+                    onCancel={()=>setEditingBaseRom(null)}/>
+
+                /* Adding ROM to custom console */
+                ) : romView==='add-console' ? (
                   <ConsoleForm onSave={handleSaveConsole} onCancel={()=>setRomView('list')}/>
                 ) : typeof romView==='object'&&romView.view==='add-rom' ? (
                   <RomForm
-                    console={customConsoles.find(c=>c.id===romView.consoleId)!}
+                    console={customConsoles.find(c=>c.id===romView.consoleId)}
                     onSave={rom=>handleSaveRom(romView.consoleId,rom)}
                     onCancel={()=>setRomView({consoleId:romView.consoleId,view:'rom-list'})}/>
+
+                /* Custom console ROM list */
                 ) : typeof romView==='object'&&romView.view==='rom-list' ? (
-                  // ROM list for a console
                   <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}>
                     <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:16,flexShrink:0 }}>
                       <button onClick={()=>setRomView('list')} style={{ background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',borderRadius:'.75rem',padding:'6px 14px',color:'rgba(255,255,255,.7)',cursor:'pointer',fontFamily:'inherit',fontSize:13 }}>← Volver</button>
@@ -811,12 +946,20 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
                     <div style={{ flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:8 }}>
                       {(customConsoles.find(c=>c.id===romView.consoleId)?.roms||[]).map(rom=>(
                         <div key={rom.id} style={{ background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'.875rem',padding:'10px 14px',display:'flex',alignItems:'center',gap:12 }}>
-                          <span style={{ fontSize:'1.5rem' }}>🎮</span>
+                          {rom.coverUrl
+                            ? <img src={rom.coverUrl} alt={rom.title} style={{ width:42,height:42,borderRadius:'.5rem',objectFit:'cover',flexShrink:0 }}/>
+                            : <span style={{ fontSize:'1.5rem' }}>🎮</span>}
                           <div style={{ flex:1 }}>
                             <div style={{ fontWeight:600,fontSize:13,color:'white' }}>{rom.title}</div>
                             <div style={{ fontSize:11,color:'rgba(255,255,255,.4)' }}>{rom.region} · {rom.year} · {rom.genre}</div>
                           </div>
-                          <div style={{ fontSize:12,color:'#f59e0b' }}>{'★'.repeat(rom.rating)}</div>
+                          <div style={{ display:'flex',gap:6,alignItems:'center',flexShrink:0 }}>
+                            <button onClick={()=>{ const c=customConsoles.find(cc=>cc.id===romView.consoleId); setEditingBaseRom({ rom, consoleId:romView.consoleId, consoleName:c?.name||'', emulator:c?.emulator||'' }); }}
+                              style={{ height:28,padding:'0 10px',borderRadius:'.5rem',background:'rgba(229,45,106,.15)',border:'1px solid rgba(229,45,106,.3)',color:'#f472b6',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600 }}>
+                              ✏️ Editar
+                            </button>
+                            <div style={{ fontSize:12,color:'#f59e0b' }}>{'★'.repeat(Math.round(rom.rating))}</div>
+                          </div>
                         </div>
                       ))}
                       {(customConsoles.find(c=>c.id===romView.consoleId)?.roms||[]).length===0&&(
@@ -827,57 +970,139 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
                       )}
                     </div>
                   </div>
+
+                /* Main ROM view */
                 ) : (
-                  // Main ROM list
                   <>
-                    <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,flexShrink:0 }}>
-                      <div>
-                        <span style={{ fontSize:14,fontWeight:600,color:'white' }}>Mis consolas personalizadas</span>
-                        <span style={{ marginLeft:10,fontSize:12,background:'rgba(232,105,42,.2)',color:'#e8692a',padding:'2px 8px',borderRadius:20,border:'1px solid rgba(232,105,42,.3)' }}>{customConsoles.length}</span>
-                      </div>
-                      <button onClick={()=>setRomView('add-console')}
-                        style={{ background:'linear-gradient(135deg,#e52d6a,#f97316)',border:'none',borderRadius:'.875rem',padding:'9px 18px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:700,display:'flex',alignItems:'center',gap:6 }}>
-                        + Nueva consola
-                      </button>
+                    {/* Sub-tab filter: Base / Custom */}
+                    <div style={{ display:'flex',gap:0,marginBottom:16,background:'rgba(255,255,255,.04)',borderRadius:'2rem',padding:3,border:'1px solid rgba(255,255,255,.08)',flexShrink:0 }}>
+                      {([['base','📂 Catálogo base'],['custom','⚙️ Mis consolas']] as const).map(([f,label])=>(
+                        <button key={f} onClick={()=>setRomTabFilter(f)}
+                          style={{ flex:1,border:'none',borderRadius:'2rem',padding:'7px 12px',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',
+                            background:romTabFilter===f?'linear-gradient(135deg,#e52d6a,#f97316)':'transparent',
+                            color:romTabFilter===f?'white':'rgba(255,255,255,.45)',transition:'all .15s' }}>
+                          {label}
+                        </button>
+                      ))}
                     </div>
 
-                    {customConsoles.length===0 ? (
-                      <div style={{ flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:14,color:'rgba(255,255,255,.25)' }}>
-                        <div style={{ fontSize:'4rem' }}>🕹️</div>
-                        <div style={{ textAlign:'center' }}>
-                          <div style={{ fontSize:15,fontWeight:600,marginBottom:6 }}>No hay consolas personalizadas</div>
-                          <div style={{ fontSize:13 }}>Crea una consola primero, luego agrega sus ROMs</div>
-                        </div>
-                        <button onClick={()=>setRomView('add-console')}
-                          style={{ background:'rgba(232,105,42,.15)',border:'1px solid rgba(232,105,42,.3)',borderRadius:'2rem',padding:'10px 24px',color:'#e8692a',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:600,marginTop:4 }}>
-                          Crear primera consola →
-                        </button>
-                      </div>
-                    ) : (
+                    {/* ── BASE CONSOLES ── */}
+                    {romTabFilter==='base'&&(
                       <div style={{ flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:10 }}>
-                        {customConsoles.map(c=>(
-                          <div key={c.id} style={{ borderRadius:'.875rem',overflow:'hidden',border:'1px solid rgba(255,255,255,.08)' }}>
-                            <div style={{ background:c.gradient,padding:'14px 18px',display:'flex',alignItems:'center',justifyContent:'space-between' }}>
-                              <div>
-                                <div style={{ fontWeight:700,color:'white',fontSize:14 }}>{c.name}</div>
-                                <div style={{ fontSize:11,color:'rgba(255,255,255,.7)',marginTop:2 }}>{c.emulator} · {c.roms.length} ROMs</div>
+                        {baseConsoles.map(c=>{
+                          const isOpen = expandedConsole===c.id;
+                          return (
+                            <div key={c.id} style={{ borderRadius:'.875rem',overflow:'hidden',border:'1px solid rgba(255,255,255,.08)' }}>
+                              {/* Console header */}
+                              <div style={{ background:c.gradient,padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer' }}
+                                onClick={()=>setExpandedConsole(isOpen ? null : c.id)}>
+                                <div>
+                                  <div style={{ fontWeight:700,color:'white',fontSize:14 }}>{c.name}</div>
+                                  <div style={{ fontSize:11,color:'rgba(255,255,255,.7)',marginTop:2 }}>{c.emulator} · {c.roms.length} ROMs · {Object.keys(romOverrides).filter(rid=>c.roms.some(r=>r.id===rid)).length} editados</div>
+                                </div>
+                                <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                                  <span style={{ fontSize:12,color:'rgba(255,255,255,.6)',fontWeight:600 }}>{isOpen?'▲':'▼'}</span>
+                                </div>
                               </div>
-                              <div style={{ display:'flex',gap:8 }}>
-                                <button onClick={()=>setRomView({consoleId:c.id,view:'rom-list'})}
-                                  style={{ background:'rgba(255,255,255,.15)',border:'1px solid rgba(255,255,255,.25)',borderRadius:'.625rem',padding:'5px 12px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600 }}>
-                                  Ver ROMs
-                                </button>
-                                <button onClick={()=>setRomView({consoleId:c.id,view:'add-rom'})}
-                                  style={{ background:'rgba(255,255,255,.15)',border:'1px solid rgba(255,255,255,.25)',borderRadius:'.625rem',padding:'5px 12px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600 }}>
-                                  + ROM
-                                </button>
-                                <button onClick={()=>handleDeleteConsole(c.id)}
-                                  style={{ width:30,height:30,borderRadius:'50%',background:'rgba(0,0,0,.25)',border:'1px solid rgba(255,255,255,.15)',color:'rgba(255,255,255,.6)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13 }}>✕</button>
-                              </div>
+                              {/* ROM list */}
+                              {isOpen&&(
+                                <div style={{ background:'rgba(0,0,0,.25)',display:'flex',flexDirection:'column',gap:0 }}>
+                                  {c.roms.map((rom,i)=>{
+                                    const override = romOverrides[rom.id];
+                                    const displayRom = override || rom;
+                                    const hasOverride = !!override;
+                                    return (
+                                      <div key={rom.id} style={{ padding:'10px 16px',display:'flex',alignItems:'center',gap:12,borderTop:i>0?'1px solid rgba(255,255,255,.05)':undefined }}>
+                                        {displayRom.coverUrl
+                                          ? <img src={displayRom.coverUrl} alt={displayRom.title} style={{ width:40,height:40,borderRadius:'.5rem',objectFit:'cover',flexShrink:0,border:'1px solid rgba(255,255,255,.1)' }}/>
+                                          : <div style={{ width:40,height:40,borderRadius:'.5rem',background:'rgba(255,255,255,.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.3rem',flexShrink:0 }}>🎮</div>}
+                                        <div style={{ flex:1,minWidth:0 }}>
+                                          <div style={{ display:'flex',alignItems:'center',gap:6 }}>
+                                            <span style={{ fontWeight:600,fontSize:13,color:'white',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{displayRom.title}</span>
+                                            {hasOverride&&<span style={{ fontSize:10,background:'rgba(232,105,42,.2)',color:'#fb923c',padding:'1px 6px',borderRadius:20,border:'1px solid rgba(232,105,42,.3)',fontWeight:700,flexShrink:0 }}>EDITADO</span>}
+                                          </div>
+                                          <div style={{ fontSize:11,color:'rgba(255,255,255,.35)',marginTop:1 }}>{displayRom.region} · {displayRom.year} · {displayRom.genre}{displayRom.downloadUrl?' · ✓ Descarga':' · ✗ Sin descarga'}</div>
+                                        </div>
+                                        <div style={{ display:'flex',gap:6,flexShrink:0 }}>
+                                          {romDeleteConfirm===rom.id ? (
+                                            <>
+                                              <span style={{ fontSize:11,color:'rgba(255,255,255,.5)',alignSelf:'center' }}>¿Revertir?</span>
+                                              <button onClick={()=>handleDeleteRomOverride(rom.id)} style={{ background:'#ef4444',border:'none',borderRadius:'.5rem',padding:'4px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:11,fontWeight:600 }}>Sí</button>
+                                              <button onClick={()=>setRomDeleteConfirm(null)} style={{ background:'rgba(255,255,255,.08)',border:'none',borderRadius:'.5rem',padding:'4px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:11 }}>No</button>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <button onClick={()=>setEditingBaseRom({ rom:displayRom, consoleId:c.id, consoleName:c.name, emulator:c.emulator })}
+                                                style={{ height:28,padding:'0 10px',borderRadius:'.5rem',background:'rgba(229,45,106,.15)',border:'1px solid rgba(229,45,106,.3)',color:'#f472b6',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:4 }}>
+                                                ✏️ Editar
+                                              </button>
+                                              {hasOverride&&(
+                                                <button onClick={()=>setRomDeleteConfirm(rom.id)} title="Revertir cambios"
+                                                  style={{ width:28,height:28,borderRadius:'50%',background:'rgba(239,68,68,.12)',border:'1px solid rgba(239,68,68,.25)',color:'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12 }}>↺</button>
+                                              )}
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
+                    )}
+
+                    {/* ── CUSTOM CONSOLES ── */}
+                    {romTabFilter==='custom'&&(
+                      <>
+                        <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,flexShrink:0 }}>
+                          <span style={{ fontSize:13,color:'rgba(255,255,255,.5)' }}>Consolas y ROMs personalizados</span>
+                          <button onClick={()=>setRomView('add-console')}
+                            style={{ background:'linear-gradient(135deg,#e52d6a,#f97316)',border:'none',borderRadius:'.875rem',padding:'8px 16px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:700 }}>
+                            + Nueva consola
+                          </button>
+                        </div>
+                        {customConsoles.length===0 ? (
+                          <div style={{ flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:14,color:'rgba(255,255,255,.25)' }}>
+                            <div style={{ fontSize:'4rem' }}>🕹️</div>
+                            <div style={{ textAlign:'center' }}>
+                              <div style={{ fontSize:15,fontWeight:600,marginBottom:6 }}>No hay consolas personalizadas</div>
+                              <div style={{ fontSize:13 }}>Crea una consola primero, luego agrega sus ROMs</div>
+                            </div>
+                            <button onClick={()=>setRomView('add-console')}
+                              style={{ background:'rgba(232,105,42,.15)',border:'1px solid rgba(232,105,42,.3)',borderRadius:'2rem',padding:'10px 24px',color:'#e8692a',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:600,marginTop:4 }}>
+                              Crear primera consola →
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:10 }}>
+                            {customConsoles.map(c=>(
+                              <div key={c.id} style={{ borderRadius:'.875rem',overflow:'hidden',border:'1px solid rgba(255,255,255,.08)' }}>
+                                <div style={{ background:c.gradient,padding:'14px 18px',display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+                                  <div>
+                                    <div style={{ fontWeight:700,color:'white',fontSize:14 }}>{c.name}</div>
+                                    <div style={{ fontSize:11,color:'rgba(255,255,255,.7)',marginTop:2 }}>{c.emulator} · {c.roms.length} ROMs</div>
+                                  </div>
+                                  <div style={{ display:'flex',gap:8 }}>
+                                    <button onClick={()=>setRomView({consoleId:c.id,view:'rom-list'})}
+                                      style={{ background:'rgba(255,255,255,.15)',border:'1px solid rgba(255,255,255,.25)',borderRadius:'.625rem',padding:'5px 12px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600 }}>
+                                      Ver ROMs
+                                    </button>
+                                    <button onClick={()=>setRomView({consoleId:c.id,view:'add-rom'})}
+                                      style={{ background:'rgba(255,255,255,.15)',border:'1px solid rgba(255,255,255,.25)',borderRadius:'.625rem',padding:'5px 12px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600 }}>
+                                      + ROM
+                                    </button>
+                                    <button onClick={()=>handleDeleteConsole(c.id)}
+                                      style={{ width:30,height:30,borderRadius:'50%',background:'rgba(0,0,0,.25)',border:'1px solid rgba(255,255,255,.15)',color:'rgba(255,255,255,.6)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13 }}>✕</button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
                     )}
                   </>
                 )}

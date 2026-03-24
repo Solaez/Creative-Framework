@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import type { App } from "./data/apps";
-import { AdminPanel, loadCustomApps, loadCustomConsoles, loadHiddenAppIds } from "./AdminPanel";
+import { AdminPanel, loadCustomApps, loadCustomConsoles, loadHiddenAppIds, loadRomOverrides } from "./AdminPanel";
+type RomOverrides = Record<string, Rom>;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Rom { id:string;title:string;region:string;size:string;rating:number;year:number;genre:string;players:string;description:string;developer:string;downloadUrl:string;coverUrl:string;screenshots:string[];videoId:string;instructions:string[]; }
@@ -1157,12 +1158,14 @@ function RomListView({ console: c, onSelectRom, onBack }: { console:Console; onS
 
 // ─── Juegos Roms Section ──────────────────────────────────────────────────────
 type RomView = { type:'list' }|{ type:'roms'; console:Console }|{ type:'rom'; console:Console; rom:Rom };
-function JuegosRomsSection({ customConsoles, onDownloadSaved, onRequireAuth }: { customConsoles: Console[]; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
-  const [romsData, setRomsData] = useState<RomsData|null>(null);
+function JuegosRomsSection({ baseConsoles, customConsoles, romOverrides, onDownloadSaved, onRequireAuth }: { baseConsoles: Console[]|null; customConsoles: Console[]; romOverrides: RomOverrides; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
   const [view, setView] = useState<RomView>({ type:'list' });
-  useEffect(()=>{ fetch('/roms.json').then(r=>r.json()).then(setRomsData).catch(()=>showToast('Error cargando ROMs','error')); },[]);
-  if(!romsData) return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'60%',color:'hsl(var(--muted-foreground))' }}>Cargando consolas...</div>;
-  const allConsoles = [...romsData.consoles, ...customConsoles];
+  if(!baseConsoles) return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'60%',color:'hsl(var(--muted-foreground))' }}>Cargando consolas...</div>;
+  const applyOverrides = (roms: Rom[]) => roms.map(r => romOverrides[r.id] ? { ...r, ...romOverrides[r.id] } : r);
+  const allConsoles = [
+    ...baseConsoles.map(c => ({ ...c, roms: applyOverrides(c.roms) })),
+    ...customConsoles,
+  ];
   if(view.type==='rom') return <RomDetailView rom={view.rom} console={view.console} onBack={()=>setView({type:'roms',console:view.console})} onDownloadSaved={onDownloadSaved} onRequireAuth={onRequireAuth}/>;
   if(view.type==='roms') return <RomListView console={view.console} onSelectRom={rom=>setView({type:'rom',console:view.console,rom})} onBack={()=>setView({type:'list'})}/>;
   return (
@@ -1187,6 +1190,8 @@ export default function App() {
   const [baseApps, setBaseApps] = useState<App[]>([]);
   const [customApps, setCustomApps] = useState<App[]>(loadCustomApps);
   const [customConsoles, setCustomConsoles] = useState<Console[]>(loadCustomConsoles);
+  const [baseConsoles, setBaseConsoles] = useState<Console[]|null>(null);
+  const [romOverrides, setRomOverrides] = useState<RomOverrides>(loadRomOverrides);
   const [appsLoading, setAppsLoading] = useState(true);
   const [online, setOnline] = useState(true);
   const [search, setSearch] = useState('');
@@ -1231,12 +1236,16 @@ export default function App() {
   const visibleBaseApps = baseApps.filter(a => !hiddenAppIds.includes(a.id));
   const apps = [...visibleBaseApps, ...customApps];
 
-  // Load base apps from JSON
+  // Load base apps and base consoles from JSON
   useEffect(() => {
     fetch('/apps.json')
       .then(r => r.json())
       .then((data: AppsData) => { setBaseApps(data.apps); setAppsLoading(false); })
       .catch(() => { showToast('Error cargando apps.json', 'error'); setAppsLoading(false); });
+    fetch('/roms.json')
+      .then(r => r.json())
+      .then((data: RomsData) => setBaseConsoles(data.consoles))
+      .catch(() => showToast('Error cargando roms.json', 'error'));
   }, []);
 
   // Apply theme class to html element
@@ -1285,7 +1294,7 @@ export default function App() {
             ) : activeCategory==='Inicio' && !selectedApp ? (
               <HomeSection apps={apps} onSelectApp={selectApp} onSelectCat={selectCat}/>
             ) : activeCategory==='Juegos Roms' && !selectedApp ? (
-              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><JuegosRomsSection customConsoles={customConsoles} onDownloadSaved={refreshHistory} onRequireAuth={requireAuth}/></div>
+              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><JuegosRomsSection baseConsoles={baseConsoles} customConsoles={customConsoles} romOverrides={romOverrides} onDownloadSaved={refreshHistory} onRequireAuth={requireAuth}/></div>
             ) : activeCategory==='Descargas' && !selectedApp ? (
               <div style={{ flex:1,overflowY:'auto',padding:24 }}>
                 <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20 }}>
@@ -1347,7 +1356,7 @@ export default function App() {
       </div>
 
       {showSettings && currentUser && <SettingsPanel theme={theme} onTheme={t=>{setTheme(t);showToast(`Tema cambiado a ${THEMES.find(x=>x.id===t)?.label||t}`,'success');}} lang={lang} onLang={l=>{setLang(l);showToast(`Idioma: ${l==='es'?'Español':'English'}`,'success');}} onClose={()=>setShowSettings(false)} onAdmin={()=>{ setShowSettings(false); setShowAdmin(true); }} isAdmin={isAdmin} currentUser={currentUser} onLogout={handleLogout}/>}
-      {showAdmin && <AdminPanel baseApps={baseApps} customApps={customApps} hiddenAppIds={hiddenAppIds} customConsoles={customConsoles} onUpdateApps={updated=>{setCustomApps(updated);}} onUpdateHiddenApps={ids=>{setHiddenAppIds(ids);}} onUpdateConsoles={updated=>{setCustomConsoles(updated);}} onClose={()=>setShowAdmin(false)}/>}
+      {showAdmin && <AdminPanel baseApps={baseApps} customApps={customApps} hiddenAppIds={hiddenAppIds} customConsoles={customConsoles} baseConsoles={baseConsoles||[]} onUpdateApps={updated=>{setCustomApps(updated);}} onUpdateHiddenApps={ids=>{setHiddenAppIds(ids);}} onUpdateConsoles={updated=>{setCustomConsoles(updated);}} onUpdateRomOverrides={overrides=>{setRomOverrides(overrides);}} onClose={()=>setShowAdmin(false)}/>}
       {showAuthModal && <AuthModal onLogin={handleLogin} onClose={()=>setShowAuthModal(false)}/>}
       <ToastContainer/>
     </>
