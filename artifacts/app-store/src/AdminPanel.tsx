@@ -9,6 +9,8 @@ interface Console { id:string;name:string;shortName:string;gradient:string;logoT
 const CUSTOM_APPS_KEY = 'appstore-custom-apps';
 const CUSTOM_ROMS_KEY = 'appstore-custom-roms';
 const HIDDEN_APPS_KEY = 'appstore-hidden-apps';
+const HIDDEN_ROMS_KEY = 'appstore-hidden-roms';
+const EXTRA_ROMS_KEY  = 'appstore-extra-roms';
 
 export function loadCustomApps(): App[] {
   try { return JSON.parse(localStorage.getItem(CUSTOM_APPS_KEY) || '[]'); } catch { return []; }
@@ -19,9 +21,18 @@ export function loadCustomConsoles(): Console[] {
 export function loadHiddenAppIds(): number[] {
   try { return JSON.parse(localStorage.getItem(HIDDEN_APPS_KEY) || '[]'); } catch { return []; }
 }
+export function loadHiddenRomIds(): string[] {
+  try { return JSON.parse(localStorage.getItem(HIDDEN_ROMS_KEY) || '[]'); } catch { return []; }
+}
+export type ExtraRoms = Record<string, Rom[]>;
+export function loadExtraRoms(): ExtraRoms {
+  try { return JSON.parse(localStorage.getItem(EXTRA_ROMS_KEY) || '{}'); } catch { return {}; }
+}
 function saveCustomApps(apps: App[]) { localStorage.setItem(CUSTOM_APPS_KEY, JSON.stringify(apps)); }
 function saveCustomConsoles(consoles: Console[]) { localStorage.setItem(CUSTOM_ROMS_KEY, JSON.stringify(consoles)); }
 function saveHiddenAppIds(ids: number[]) { localStorage.setItem(HIDDEN_APPS_KEY, JSON.stringify(ids)); }
+function saveHiddenRomIds(ids: string[]) { localStorage.setItem(HIDDEN_ROMS_KEY, JSON.stringify(ids)); }
+function saveExtraRoms(extra: ExtraRoms) { localStorage.setItem(EXTRA_ROMS_KEY, JSON.stringify(extra)); }
 
 const ROM_OVERRIDES_KEY = 'appstore-rom-overrides';
 type RomOverrides = Record<string, Rom>;
@@ -657,14 +668,18 @@ interface AdminPanelProps {
   hiddenAppIds: number[];
   customConsoles: Console[];
   baseConsoles: Console[];
+  extraRoms: ExtraRoms;
+  hiddenRomIds: string[];
   onUpdateApps: (apps: App[]) => void;
   onUpdateHiddenApps: (ids: number[]) => void;
   onUpdateConsoles: (consoles: Console[]) => void;
   onUpdateRomOverrides: (overrides: RomOverrides) => void;
+  onUpdateExtraRoms: (extra: ExtraRoms) => void;
+  onUpdateHiddenRoms: (ids: string[]) => void;
   onClose: () => void;
 }
 
-export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles, baseConsoles, onUpdateApps, onUpdateHiddenApps, onUpdateConsoles, onUpdateRomOverrides, onClose }: AdminPanelProps) {
+export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles, baseConsoles, extraRoms: extraRomsProp, hiddenRomIds: hiddenRomIdsProp, onUpdateApps, onUpdateHiddenApps, onUpdateConsoles, onUpdateRomOverrides, onUpdateExtraRoms, onUpdateHiddenRoms, onClose }: AdminPanelProps) {
   const [tab, setTab] = useState<AdminTab>('apps');
   const [showAppForm, setShowAppForm] = useState(false);
   const [editingApp, setEditingApp] = useState<App|null>(null);
@@ -673,16 +688,27 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
   const [appFilter, setAppFilter] = useState<'all'|'base'|'custom'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [romTabFilter, setRomTabFilter] = useState<'base'|'custom'>('base');
-  const [editingBaseRom, setEditingBaseRom] = useState<{ rom: Rom; consoleId: string; consoleName: string; emulator: string } | null>(null);
+  const [editingBaseRom, setEditingBaseRom] = useState<{ rom: Rom; consoleId: string; consoleName: string; emulator: string; isExtra?: boolean } | null>(null);
   const [expandedConsole, setExpandedConsole] = useState<string|null>(null);
   const [romOverrides, setRomOverrides] = useState<RomOverrides>(loadRomOverrides);
   const [romDeleteConfirm, setRomDeleteConfirm] = useState<string|null>(null);
+  const [extraRoms, setExtraRoms] = useState<ExtraRoms>(extraRomsProp);
+  const [hiddenRomIds, setHiddenRomIds] = useState<string[]>(hiddenRomIdsProp);
+  const [addingRomToConsoleId, setAddingRomToConsoleId] = useState<string|null>(null);
 
   function handleSaveRomOverride(rom: Rom) {
-    const updated = { ...romOverrides, [rom.id]: rom };
-    saveRomOverrides(updated);
-    setRomOverrides(updated);
-    onUpdateRomOverrides(updated);
+    if (editingBaseRom?.isExtra) {
+      const consoleId = editingBaseRom.consoleId;
+      const updatedExtra = { ...extraRoms, [consoleId]: (extraRoms[consoleId]||[]).map(r => r.id===rom.id ? rom : r) };
+      saveExtraRoms(updatedExtra);
+      setExtraRoms(updatedExtra);
+      onUpdateExtraRoms(updatedExtra);
+    } else {
+      const updated = { ...romOverrides, [rom.id]: rom };
+      saveRomOverrides(updated);
+      setRomOverrides(updated);
+      onUpdateRomOverrides(updated);
+    }
     setEditingBaseRom(null);
   }
 
@@ -693,6 +719,37 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
     setRomOverrides(updated);
     onUpdateRomOverrides(updated);
     setRomDeleteConfirm(null);
+  }
+
+  function handleAddRomToBaseConsole(consoleId: string, rom: Rom) {
+    const updated = { ...extraRoms, [consoleId]: [...(extraRoms[consoleId] || []), rom] };
+    saveExtraRoms(updated);
+    setExtraRoms(updated);
+    onUpdateExtraRoms(updated);
+    setAddingRomToConsoleId(null);
+  }
+
+  function handleDeleteExtraRom(consoleId: string, romId: string) {
+    const updated = { ...extraRoms, [consoleId]: (extraRoms[consoleId] || []).filter(r => r.id !== romId) };
+    saveExtraRoms(updated);
+    setExtraRoms(updated);
+    onUpdateExtraRoms(updated);
+    setRomDeleteConfirm(null);
+  }
+
+  function handleHideBaseRom(romId: string) {
+    const updated = [...hiddenRomIds, romId];
+    saveHiddenRomIds(updated);
+    setHiddenRomIds(updated);
+    onUpdateHiddenRoms(updated);
+    setRomDeleteConfirm(null);
+  }
+
+  function handleUnhideBaseRom(romId: string) {
+    const updated = hiddenRomIds.filter(id => id !== romId);
+    saveHiddenRomIds(updated);
+    setHiddenRomIds(updated);
+    onUpdateHiddenRoms(updated);
   }
 
   function handleSaveApp(app: App) {
@@ -988,70 +1045,151 @@ export function AdminPanel({ baseApps, customApps, hiddenAppIds, customConsoles,
 
                     {/* ── BASE CONSOLES ── */}
                     {romTabFilter==='base'&&(
-                      <div style={{ flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:10 }}>
-                        {baseConsoles.map(c=>{
-                          const isOpen = expandedConsole===c.id;
-                          return (
-                            <div key={c.id} style={{ borderRadius:'.875rem',overflow:'hidden',border:'1px solid rgba(255,255,255,.08)' }}>
-                              {/* Console header */}
-                              <div style={{ background:c.gradient,padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer' }}
-                                onClick={()=>setExpandedConsole(isOpen ? null : c.id)}>
-                                <div>
-                                  <div style={{ fontWeight:700,color:'white',fontSize:14 }}>{c.name}</div>
-                                  <div style={{ fontSize:11,color:'rgba(255,255,255,.7)',marginTop:2 }}>{c.emulator} · {c.roms.length} ROMs · {Object.keys(romOverrides).filter(rid=>c.roms.some(r=>r.id===rid)).length} editados</div>
+                      addingRomToConsoleId ? (
+                        <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}>
+                          <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:14,flexShrink:0 }}>
+                            <button onClick={()=>setAddingRomToConsoleId(null)} style={{ background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',borderRadius:'.75rem',padding:'6px 14px',color:'rgba(255,255,255,.7)',cursor:'pointer',fontFamily:'inherit',fontSize:13 }}>← Volver</button>
+                            <span style={{ fontSize:13,color:'rgba(255,255,255,.5)' }}>Agregar ROM a <strong style={{ color:'white' }}>{baseConsoles.find(c=>c.id===addingRomToConsoleId)?.name}</strong></span>
+                          </div>
+                          <RomForm
+                            console={baseConsoles.find(c=>c.id===addingRomToConsoleId)}
+                            onSave={rom=>handleAddRomToBaseConsole(addingRomToConsoleId, rom)}
+                            onCancel={()=>setAddingRomToConsoleId(null)}/>
+                        </div>
+                      ) : (
+                        <div style={{ flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:10 }}>
+                          {baseConsoles.map(c=>{
+                            const isOpen = expandedConsole===c.id;
+                            const consoleExtraRoms = extraRoms[c.id] || [];
+                            const visibleBase = c.roms.filter(r => !hiddenRomIds.includes(r.id));
+                            const hiddenCount = c.roms.length - visibleBase.length;
+                            const editedCount = Object.keys(romOverrides).filter(rid=>c.roms.some(r=>r.id===rid)).length;
+                            return (
+                              <div key={c.id} style={{ borderRadius:'.875rem',overflow:'hidden',border:'1px solid rgba(255,255,255,.08)' }}>
+                                {/* Console header */}
+                                <div style={{ background:c.gradient,padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+                                  <div onClick={()=>setExpandedConsole(isOpen ? null : c.id)} style={{ flex:1,cursor:'pointer' }}>
+                                    <div style={{ fontWeight:700,color:'white',fontSize:14 }}>{c.name}</div>
+                                    <div style={{ fontSize:11,color:'rgba(255,255,255,.7)',marginTop:2 }}>
+                                      {c.emulator} · {visibleBase.length + consoleExtraRoms.length} ROMs
+                                      {editedCount>0&&` · ${editedCount} editados`}
+                                      {hiddenCount>0&&` · ${hiddenCount} ocultos`}
+                                      {consoleExtraRoms.length>0&&` · ${consoleExtraRoms.length} agregados`}
+                                    </div>
+                                  </div>
+                                  <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                                    <button onClick={e=>{e.stopPropagation();setAddingRomToConsoleId(c.id);setExpandedConsole(c.id);}}
+                                      style={{ background:'rgba(255,255,255,.2)',border:'1px solid rgba(255,255,255,.35)',borderRadius:'.625rem',padding:'5px 12px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:700 }}>
+                                      + ROM
+                                    </button>
+                                    <span onClick={()=>setExpandedConsole(isOpen ? null : c.id)} style={{ fontSize:12,color:'rgba(255,255,255,.6)',fontWeight:600,cursor:'pointer',padding:'4px' }}>{isOpen?'▲':'▼'}</span>
+                                  </div>
                                 </div>
-                                <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-                                  <span style={{ fontSize:12,color:'rgba(255,255,255,.6)',fontWeight:600 }}>{isOpen?'▲':'▼'}</span>
-                                </div>
-                              </div>
-                              {/* ROM list */}
-                              {isOpen&&(
-                                <div style={{ background:'rgba(0,0,0,.25)',display:'flex',flexDirection:'column',gap:0 }}>
-                                  {c.roms.map((rom,i)=>{
-                                    const override = romOverrides[rom.id];
-                                    const displayRom = override || rom;
-                                    const hasOverride = !!override;
-                                    return (
-                                      <div key={rom.id} style={{ padding:'10px 16px',display:'flex',alignItems:'center',gap:12,borderTop:i>0?'1px solid rgba(255,255,255,.05)':undefined }}>
-                                        {displayRom.coverUrl
-                                          ? <img src={displayRom.coverUrl} alt={displayRom.title} style={{ width:40,height:40,borderRadius:'.5rem',objectFit:'cover',flexShrink:0,border:'1px solid rgba(255,255,255,.1)' }}/>
-                                          : <div style={{ width:40,height:40,borderRadius:'.5rem',background:'rgba(255,255,255,.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.3rem',flexShrink:0 }}>🎮</div>}
+                                {/* ROM list */}
+                                {isOpen&&(
+                                  <div style={{ background:'rgba(0,0,0,.25)',display:'flex',flexDirection:'column',gap:0 }}>
+                                    {/* Base ROMs */}
+                                    {c.roms.map((rom,i)=>{
+                                      const override = romOverrides[rom.id];
+                                      const displayRom = override || rom;
+                                      const hasOverride = !!override;
+                                      const isHidden = hiddenRomIds.includes(rom.id);
+                                      const confirmKey = `hide-${rom.id}`;
+                                      return (
+                                        <div key={rom.id} style={{ padding:'10px 16px',display:'flex',alignItems:'center',gap:12,borderTop:i>0?'1px solid rgba(255,255,255,.05)':undefined,opacity:isHidden?.45:1 }}>
+                                          {displayRom.coverUrl
+                                            ? <img src={displayRom.coverUrl} alt={displayRom.title} style={{ width:40,height:40,borderRadius:'.5rem',objectFit:'cover',flexShrink:0,border:'1px solid rgba(255,255,255,.1)' }}/>
+                                            : <div style={{ width:40,height:40,borderRadius:'.5rem',background:'rgba(255,255,255,.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.3rem',flexShrink:0 }}>🎮</div>}
+                                          <div style={{ flex:1,minWidth:0 }}>
+                                            <div style={{ display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' }}>
+                                              <span style={{ fontWeight:600,fontSize:13,color:'white',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{displayRom.title}</span>
+                                              {hasOverride&&<span style={{ fontSize:10,background:'rgba(232,105,42,.2)',color:'#fb923c',padding:'1px 6px',borderRadius:20,border:'1px solid rgba(232,105,42,.3)',fontWeight:700,flexShrink:0 }}>EDITADO</span>}
+                                              {isHidden&&<span style={{ fontSize:10,background:'rgba(239,68,68,.15)',color:'#f87171',padding:'1px 6px',borderRadius:20,border:'1px solid rgba(239,68,68,.25)',fontWeight:700,flexShrink:0 }}>OCULTO</span>}
+                                            </div>
+                                            <div style={{ fontSize:11,color:'rgba(255,255,255,.35)',marginTop:1 }}>{displayRom.region} · {displayRom.year} · {displayRom.genre}{displayRom.downloadUrl?' · ✓ Descarga':' · ✗ Sin descarga'}</div>
+                                          </div>
+                                          <div style={{ display:'flex',gap:6,flexShrink:0 }}>
+                                            {romDeleteConfirm===rom.id ? (
+                                              <>
+                                                <span style={{ fontSize:11,color:'rgba(255,255,255,.5)',alignSelf:'center' }}>¿{isHidden?'Mostrar':'Ocultar'}?</span>
+                                                <button onClick={()=>isHidden ? handleUnhideBaseRom(rom.id) : handleHideBaseRom(rom.id)} style={{ background:isHidden?'#22c55e':'#ef4444',border:'none',borderRadius:'.5rem',padding:'4px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:11,fontWeight:600 }}>Sí</button>
+                                                <button onClick={()=>setRomDeleteConfirm(null)} style={{ background:'rgba(255,255,255,.08)',border:'none',borderRadius:'.5rem',padding:'4px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:11 }}>No</button>
+                                              </>
+                                            ) : romDeleteConfirm===`rev-${rom.id}` ? (
+                                              <>
+                                                <span style={{ fontSize:11,color:'rgba(255,255,255,.5)',alignSelf:'center' }}>¿Revertir edición?</span>
+                                                <button onClick={()=>handleDeleteRomOverride(rom.id)} style={{ background:'#ef4444',border:'none',borderRadius:'.5rem',padding:'4px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:11,fontWeight:600 }}>Sí</button>
+                                                <button onClick={()=>setRomDeleteConfirm(null)} style={{ background:'rgba(255,255,255,.08)',border:'none',borderRadius:'.5rem',padding:'4px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:11 }}>No</button>
+                                              </>
+                                            ) : (
+                                              <>
+                                                {!isHidden&&(
+                                                  <button onClick={()=>setEditingBaseRom({ rom:displayRom, consoleId:c.id, consoleName:c.name, emulator:c.emulator })}
+                                                    style={{ height:28,padding:'0 10px',borderRadius:'.5rem',background:'rgba(229,45,106,.15)',border:'1px solid rgba(229,45,106,.3)',color:'#f472b6',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:4 }}>
+                                                    ✏️ Editar
+                                                  </button>
+                                                )}
+                                                {hasOverride&&!isHidden&&(
+                                                  <button onClick={()=>setRomDeleteConfirm(`rev-${rom.id}`)} title="Revertir cambios"
+                                                    style={{ width:28,height:28,borderRadius:'50%',background:'rgba(239,68,68,.12)',border:'1px solid rgba(239,68,68,.25)',color:'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12 }}>↺</button>
+                                                )}
+                                                <button onClick={()=>setRomDeleteConfirm(rom.id)} title={isHidden?'Mostrar ROM':'Ocultar ROM'}
+                                                  style={{ width:28,height:28,borderRadius:'50%',background:isHidden?'rgba(34,197,94,.12)':'rgba(239,68,68,.12)',border:`1px solid ${isHidden?'rgba(34,197,94,.25)':'rgba(239,68,68,.25)'}`,color:isHidden?'#4ade80':'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13 }}>
+                                                  {isHidden?'👁':'✕'}
+                                                </button>
+                                              </>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                    {/* Extra ROMs added to this base console */}
+                                    {consoleExtraRoms.map((rom,i)=>(
+                                      <div key={rom.id} style={{ padding:'10px 16px',display:'flex',alignItems:'center',gap:12,borderTop:'1px solid rgba(255,255,255,.05)',background:'rgba(34,197,94,.03)' }}>
+                                        {rom.coverUrl
+                                          ? <img src={rom.coverUrl} alt={rom.title} style={{ width:40,height:40,borderRadius:'.5rem',objectFit:'cover',flexShrink:0,border:'1px solid rgba(34,197,94,.2)' }}/>
+                                          : <div style={{ width:40,height:40,borderRadius:'.5rem',background:'rgba(34,197,94,.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.3rem',flexShrink:0 }}>🎮</div>}
                                         <div style={{ flex:1,minWidth:0 }}>
                                           <div style={{ display:'flex',alignItems:'center',gap:6 }}>
-                                            <span style={{ fontWeight:600,fontSize:13,color:'white',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{displayRom.title}</span>
-                                            {hasOverride&&<span style={{ fontSize:10,background:'rgba(232,105,42,.2)',color:'#fb923c',padding:'1px 6px',borderRadius:20,border:'1px solid rgba(232,105,42,.3)',fontWeight:700,flexShrink:0 }}>EDITADO</span>}
+                                            <span style={{ fontWeight:600,fontSize:13,color:'white',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{rom.title}</span>
+                                            <span style={{ fontSize:10,background:'rgba(34,197,94,.2)',color:'#4ade80',padding:'1px 6px',borderRadius:20,border:'1px solid rgba(34,197,94,.3)',fontWeight:700,flexShrink:0 }}>AGREGADO</span>
                                           </div>
-                                          <div style={{ fontSize:11,color:'rgba(255,255,255,.35)',marginTop:1 }}>{displayRom.region} · {displayRom.year} · {displayRom.genre}{displayRom.downloadUrl?' · ✓ Descarga':' · ✗ Sin descarga'}</div>
+                                          <div style={{ fontSize:11,color:'rgba(255,255,255,.35)',marginTop:1 }}>{rom.region} · {rom.year} · {rom.genre}{rom.downloadUrl?' · ✓ Descarga':' · ✗ Sin descarga'}</div>
                                         </div>
                                         <div style={{ display:'flex',gap:6,flexShrink:0 }}>
-                                          {romDeleteConfirm===rom.id ? (
+                                          {romDeleteConfirm===`extra-${rom.id}` ? (
                                             <>
-                                              <span style={{ fontSize:11,color:'rgba(255,255,255,.5)',alignSelf:'center' }}>¿Revertir?</span>
-                                              <button onClick={()=>handleDeleteRomOverride(rom.id)} style={{ background:'#ef4444',border:'none',borderRadius:'.5rem',padding:'4px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:11,fontWeight:600 }}>Sí</button>
+                                              <span style={{ fontSize:11,color:'rgba(255,255,255,.5)',alignSelf:'center' }}>¿Eliminar?</span>
+                                              <button onClick={()=>handleDeleteExtraRom(c.id, rom.id)} style={{ background:'#ef4444',border:'none',borderRadius:'.5rem',padding:'4px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:11,fontWeight:600 }}>Sí</button>
                                               <button onClick={()=>setRomDeleteConfirm(null)} style={{ background:'rgba(255,255,255,.08)',border:'none',borderRadius:'.5rem',padding:'4px 10px',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:11 }}>No</button>
                                             </>
                                           ) : (
                                             <>
-                                              <button onClick={()=>setEditingBaseRom({ rom:displayRom, consoleId:c.id, consoleName:c.name, emulator:c.emulator })}
+                                              <button onClick={()=>setEditingBaseRom({ rom, consoleId:c.id, consoleName:c.name, emulator:c.emulator, isExtra:true })}
                                                 style={{ height:28,padding:'0 10px',borderRadius:'.5rem',background:'rgba(229,45,106,.15)',border:'1px solid rgba(229,45,106,.3)',color:'#f472b6',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:4 }}>
                                                 ✏️ Editar
                                               </button>
-                                              {hasOverride&&(
-                                                <button onClick={()=>setRomDeleteConfirm(rom.id)} title="Revertir cambios"
-                                                  style={{ width:28,height:28,borderRadius:'50%',background:'rgba(239,68,68,.12)',border:'1px solid rgba(239,68,68,.25)',color:'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12 }}>↺</button>
-                                              )}
+                                              <button onClick={()=>setRomDeleteConfirm(`extra-${rom.id}`)}
+                                                style={{ width:28,height:28,borderRadius:'50%',background:'rgba(239,68,68,.12)',border:'1px solid rgba(239,68,68,.25)',color:'#ef4444',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14 }}>✕</button>
                                             </>
                                           )}
                                         </div>
                                       </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                                    ))}
+                                    {/* Add ROM button at bottom of list */}
+                                    <div style={{ padding:'10px 16px',borderTop:'1px solid rgba(255,255,255,.05)' }}>
+                                      <button onClick={()=>setAddingRomToConsoleId(c.id)}
+                                        style={{ width:'100%',background:'rgba(255,255,255,.04)',border:'1px dashed rgba(255,255,255,.15)',borderRadius:'.625rem',padding:'8px',color:'rgba(255,255,255,.4)',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:500 }}>
+                                        + Agregar ROM a {c.name}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
                     )}
 
                     {/* ── CUSTOM CONSOLES ── */}

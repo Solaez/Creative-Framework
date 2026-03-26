@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import type { App } from "./data/apps";
-import { AdminPanel, loadCustomApps, loadCustomConsoles, loadHiddenAppIds, loadRomOverrides } from "./AdminPanel";
+import { AdminPanel, loadCustomApps, loadCustomConsoles, loadHiddenAppIds, loadRomOverrides, loadExtraRoms, loadHiddenRomIds } from "./AdminPanel";
+import type { ExtraRoms } from "./AdminPanel";
 type RomOverrides = Record<string, Rom>;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1162,7 +1163,7 @@ function RomListView({ console: c, onSelectRom, onBack }: { console:Console; onS
 
 // ─── Juegos Roms Section ──────────────────────────────────────────────────────
 type RomView = { type:'list' }|{ type:'roms'; consoleId:string };
-function JuegosRomsSection({ baseConsoles, customConsoles, romOverrides, onDownloadSaved, onRequireAuth }: { baseConsoles:Console[]|null; customConsoles:Console[]; romOverrides:RomOverrides; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
+function JuegosRomsSection({ baseConsoles, customConsoles, romOverrides, extraRoms, hiddenRomIds, onDownloadSaved, onRequireAuth }: { baseConsoles:Console[]|null; customConsoles:Console[]; romOverrides:RomOverrides; extraRoms:ExtraRoms; hiddenRomIds:string[]; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
   const [view, setView] = useState<RomView>({ type:'list' });
   const [selectedRom, setSelectedRom] = useState<{rom:Rom; console:Console}|null>(null);
 
@@ -1170,7 +1171,12 @@ function JuegosRomsSection({ baseConsoles, customConsoles, romOverrides, onDownl
     ? [
         ...baseConsoles.map(c => ({
           ...c,
-          roms: c.roms.map(r => romOverrides[r.id] ? { ...r, ...romOverrides[r.id] } : r),
+          roms: [
+            ...c.roms
+              .filter(r => !hiddenRomIds.includes(r.id))
+              .map(r => romOverrides[r.id] ? { ...r, ...romOverrides[r.id] } : r),
+            ...(extraRoms[c.id] || []),
+          ],
         })),
         ...customConsoles,
       ]
@@ -1217,6 +1223,8 @@ export default function App() {
   const [customConsoles, setCustomConsoles] = useState<Console[]>(loadCustomConsoles);
   const [baseConsoles, setBaseConsoles] = useState<Console[]|null>(null);
   const [romOverrides, setRomOverrides] = useState<RomOverrides>(loadRomOverrides);
+  const [extraRoms, setExtraRoms] = useState<ExtraRoms>(loadExtraRoms);
+  const [hiddenRomIds, setHiddenRomIds] = useState<string[]>(loadHiddenRomIds);
   const [appsLoading, setAppsLoading] = useState(true);
   const [online, setOnline] = useState(true);
   const [search, setSearch] = useState('');
@@ -1319,7 +1327,7 @@ export default function App() {
             ) : activeCategory==='Inicio' && !selectedApp ? (
               <HomeSection apps={apps} onSelectApp={selectApp} onSelectCat={selectCat}/>
             ) : activeCategory==='Juegos Roms' && !selectedApp ? (
-              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><JuegosRomsSection baseConsoles={baseConsoles} customConsoles={customConsoles} romOverrides={romOverrides} onDownloadSaved={refreshHistory} onRequireAuth={requireAuth}/></div>
+              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><JuegosRomsSection baseConsoles={baseConsoles} customConsoles={customConsoles} romOverrides={romOverrides} extraRoms={extraRoms} hiddenRomIds={hiddenRomIds} onDownloadSaved={refreshHistory} onRequireAuth={requireAuth}/></div>
             ) : activeCategory==='Descargas' && !selectedApp ? (
               <div style={{ flex:1,overflowY:'auto',padding:24 }}>
                 <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20 }}>
@@ -1381,7 +1389,7 @@ export default function App() {
       </div>
 
       {showSettings && currentUser && <SettingsPanel theme={theme} onTheme={t=>{setTheme(t);showToast(`Tema cambiado a ${THEMES.find(x=>x.id===t)?.label||t}`,'success');}} lang={lang} onLang={l=>{setLang(l);showToast(`Idioma: ${l==='es'?'Español':'English'}`,'success');}} onClose={()=>setShowSettings(false)} onAdmin={()=>{ setShowSettings(false); setShowAdmin(true); }} isAdmin={isAdmin} currentUser={currentUser} onLogout={handleLogout}/>}
-      {showAdmin && <AdminPanel baseApps={baseApps} customApps={customApps} hiddenAppIds={hiddenAppIds} customConsoles={customConsoles} baseConsoles={baseConsoles||[]} onUpdateApps={updated=>{setCustomApps(updated);}} onUpdateHiddenApps={ids=>{setHiddenAppIds(ids);}} onUpdateConsoles={updated=>{setCustomConsoles(updated);}} onUpdateRomOverrides={overrides=>{setRomOverrides(overrides);}} onClose={()=>setShowAdmin(false)}/>}
+      {showAdmin && <AdminPanel baseApps={baseApps} customApps={customApps} hiddenAppIds={hiddenAppIds} customConsoles={customConsoles} baseConsoles={baseConsoles||[]} extraRoms={extraRoms} hiddenRomIds={hiddenRomIds} onUpdateApps={updated=>{setCustomApps(updated);}} onUpdateHiddenApps={ids=>{setHiddenAppIds(ids);}} onUpdateConsoles={updated=>{setCustomConsoles(updated);}} onUpdateRomOverrides={overrides=>{setRomOverrides(overrides);}} onUpdateExtraRoms={updated=>{setExtraRoms(updated);}} onUpdateHiddenRoms={ids=>{setHiddenRomIds(ids);}} onClose={()=>setShowAdmin(false)}/>}
       {showAuthModal && <AuthModal onLogin={handleLogin} onClose={()=>setShowAuthModal(false)}/>}
       <ToastContainer/>
     </>
