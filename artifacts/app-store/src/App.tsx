@@ -1076,7 +1076,11 @@ function RomDetailView({ rom, console: c, onBack, onDownloadSaved, onRequireAuth
     inp.onchange=(e:Event)=>{ const f=(e.target as HTMLInputElement).files?.[0]; if(f){ setFilePath(f.name); setDownloaded(true); showToast(`Archivo: ${f.name}`,'success'); } }; inp.click();
   }
   function handleExecute() { showToast(`Abriendo ${rom.title} en ${c.emulator}...`,'success'); }
-  const mediaItems: MediaItem[] = [{ type:'cover',label:'Portada',emoji:'🎮' },...(rom.videoId?[{type:'video' as const,label:'Gameplay',videoId:rom.videoId}]:[]),...rom.screenshots.map((src,i)=>({type:'screen' as const,label:`Captura ${i+1}`,src})),{ type:'cover',label:'Arte adicional',emoji:'🕹️' }];
+  const mediaItems: MediaItem[] = [
+    ...(rom.coverUrl?[{type:'screen' as const,label:'Portada',src:rom.coverUrl}]:[{type:'cover' as const,label:'Portada',emoji:'🎮'}]),
+    ...(rom.videoId?[{type:'video' as const,label:'Gameplay',videoId:rom.videoId}]:[]),
+    ...rom.screenshots.map((src,i)=>({type:'screen' as const,label:`Captura ${i+1}`,src})),
+  ];
   const extraPanel = (
     <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
       <div style={{ background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'1rem',padding:'16px 20px' }}>
@@ -1094,7 +1098,7 @@ function RomDetailView({ rom, console: c, onBack, onDownloadSaved, onRequireAuth
       </div>
     </div>
   );
-  return <GamingDetailLayout onBack={onBack} backLabel={`Volver a ${c.name}`} coverEmoji="🎮" coverBg={`${c.gradient}, #0a0a18`} title={rom.title} genres={[c.name,rom.genre]} description={rom.description} platform={`${c.name} · ${c.emulator}`} ratingNum={rom.rating*2} reviews={Math.floor(rom.rating*680)} language={`${rom.region} · ${rom.players}P`} releaseDate={rom.year.toString()} size={rom.size} developer={rom.developer} publisher={c.name} accentColor={accentColor} actionLabel={downloaded?'Descargar de nuevo':'Descargar ROM'} actionIcon="download" onAction={handleDownload} actionPending={downloading} actionProgress={progress} secondaryLabel={downloaded?`Ejecutar en ${c.emulator}`:undefined} secondaryIcon="run" onSecondary={downloaded?handleExecute:undefined} mediaItems={mediaItems} extraPanel={extraPanel}/>;
+  return <GamingDetailLayout onBack={onBack} backLabel="Volver" coverEmoji="🎮" coverBg={`${c.gradient}, #0a0a18`} coverUrl={rom.coverUrl} title={rom.title} genres={[c.name,rom.genre]} description={rom.description} platform={`${c.name} · ${c.emulator}`} ratingNum={rom.rating*2} reviews={Math.floor(rom.rating*680)} language={`${rom.region} · ${rom.players}P`} releaseDate={rom.year.toString()} size={rom.size} developer={rom.developer} publisher={c.name} accentColor={accentColor} actionLabel={downloaded?'Descargar de nuevo':'Descargar ROM'} actionIcon="download" onAction={handleDownload} actionPending={downloading} actionProgress={progress} secondaryLabel={downloaded?`Ejecutar en ${c.emulator}`:undefined} secondaryIcon="run" onSecondary={downloaded?handleExecute:undefined} mediaItems={mediaItems} extraPanel={extraPanel}/>;
 }
 
 // ─── Console Banner ───────────────────────────────────────────────────────────
@@ -1157,32 +1161,48 @@ function RomListView({ console: c, onSelectRom, onBack }: { console:Console; onS
 }
 
 // ─── Juegos Roms Section ──────────────────────────────────────────────────────
-type RomView = { type:'list' }|{ type:'roms'; consoleId:string }|{ type:'rom'; consoleId:string; romId:string };
-function JuegosRomsSection({ allConsoles, onDownloadSaved, onRequireAuth }: { allConsoles: Console[]; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
+type RomView = { type:'list' }|{ type:'roms'; consoleId:string };
+function JuegosRomsSection({ baseConsoles, customConsoles, romOverrides, onDownloadSaved, onRequireAuth }: { baseConsoles:Console[]|null; customConsoles:Console[]; romOverrides:RomOverrides; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
   const [view, setView] = useState<RomView>({ type:'list' });
-  const customCount = allConsoles.filter(c => !c.id.startsWith('wii') && !c.id.startsWith('gc') && !c.id.startsWith('nds') && !c.id.startsWith('gba') && !c.id.startsWith('psp') && !c.id.startsWith('ps') && !c.id.startsWith('n64') && !c.id.startsWith('snes') && !c.id.startsWith('nes') && !c.id.startsWith('gb')).length;
+  const [selectedRom, setSelectedRom] = useState<{rom:Rom; console:Console}|null>(null);
 
-  if(view.type==='rom') {
-    const currentConsole = allConsoles.find(c => c.id === view.consoleId);
-    const currentRom = currentConsole?.roms.find(r => r.id === view.romId);
-    if(!currentConsole || !currentRom) return null;
-    return <RomDetailView rom={currentRom} console={currentConsole} onBack={()=>setView({type:'roms', consoleId:view.consoleId})} onDownloadSaved={onDownloadSaved} onRequireAuth={onRequireAuth}/>;
-  }
-  if(view.type==='roms') {
-    const currentConsole = allConsoles.find(c => c.id === view.consoleId);
-    if(!currentConsole) return null;
-    return <RomListView console={currentConsole} onSelectRom={rom=>setView({type:'rom', consoleId:currentConsole.id, romId:rom.id})} onBack={()=>setView({type:'list'})}/>;
-  }
+  const allConsoles: Console[] = baseConsoles
+    ? [
+        ...baseConsoles.map(c => ({
+          ...c,
+          roms: c.roms.map(r => romOverrides[r.id] ? { ...r, ...romOverrides[r.id] } : r),
+        })),
+        ...customConsoles,
+      ]
+    : [...customConsoles];
+
+  const customCount = customConsoles.length;
+
+  const currentConsole = view.type==='roms' ? allConsoles.find(c => c.id === view.consoleId) ?? null : null;
+
   return (
-    <div style={{ padding:24,flex:1,overflowY:'auto' }}>
-      <div style={{ marginBottom:20 }}>
-        <h2 style={{ margin:'0 0 4px',fontSize:'1.3rem',fontWeight:700 }}>Juegos Roms</h2>
-        <p style={{ color:'hsl(var(--muted-foreground))',fontSize:14,margin:0 }}>Selecciona una consola para ver sus juegos disponibles</p>
-        {customCount>0&&<span style={{ fontSize:12,color:'hsl(var(--primary))',marginTop:4,display:'inline-block' }}>+ {customCount} consola(s) personalizada(s)</span>}
-      </div>
-      <div style={{ display:'flex',flexDirection:'column',gap:14 }}>
-        {allConsoles.map(c=><ConsoleBanner key={c.id} console={c} onClick={()=>setView({type:'roms', consoleId:c.id})}/>)}
-      </div>
+    <div style={{ position:'relative', flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+      {currentConsole ? (
+        <RomListView console={currentConsole} onSelectRom={rom=>setSelectedRom({rom, console:currentConsole})} onBack={()=>setView({type:'list'})}/>
+      ) : (
+        <div style={{ padding:24,flex:1,overflowY:'auto' }}>
+          <div style={{ marginBottom:20 }}>
+            <h2 style={{ margin:'0 0 4px',fontSize:'1.3rem',fontWeight:700 }}>Juegos Roms</h2>
+            <p style={{ color:'hsl(var(--muted-foreground))',fontSize:14,margin:0 }}>Selecciona una consola para ver sus juegos disponibles</p>
+            {customCount>0&&<span style={{ fontSize:12,color:'hsl(var(--primary))',marginTop:4,display:'inline-block' }}>+ {customCount} consola(s) personalizada(s)</span>}
+          </div>
+          <div style={{ display:'flex',flexDirection:'column',gap:14 }}>
+            {allConsoles.map(c=><ConsoleBanner key={c.id} console={c} onClick={()=>setView({type:'roms', consoleId:c.id})}/>)}
+          </div>
+        </div>
+      )}
+
+      {/* ROM Detail — modal overlay (igual que el detalle de programas, sin abrir aparte) */}
+      {selectedRom && (
+        <div style={{ position:'absolute',inset:0,zIndex:200,display:'flex',flexDirection:'column',overflow:'hidden',background:'hsl(var(--background))' }}>
+          <RomDetailView rom={selectedRom.rom} console={selectedRom.console} onBack={()=>setSelectedRom(null)} onDownloadSaved={onDownloadSaved} onRequireAuth={onRequireAuth}/>
+        </div>
+      )}
     </div>
   );
 }
@@ -1240,17 +1260,6 @@ export default function App() {
   // All apps = visible base JSON apps + user-created
   const visibleBaseApps = baseApps.filter(a => !hiddenAppIds.includes(a.id));
   const apps = [...visibleBaseApps, ...customApps];
-
-  // All consoles = base JSON consoles (with ROM overrides merged) + custom consoles
-  const allConsoles: Console[] = baseConsoles
-    ? [
-        ...baseConsoles.map(c => ({
-          ...c,
-          roms: c.roms.map(r => romOverrides[r.id] ? { ...r, ...romOverrides[r.id] } : r),
-        })),
-        ...customConsoles,
-      ]
-    : [];
 
   // Load base apps and base consoles from JSON
   useEffect(() => {
