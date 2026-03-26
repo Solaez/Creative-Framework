@@ -1162,98 +1162,306 @@ function RomListView({ console: c, onSelectRom, onBack }: { console:Console; onS
 }
 
 // ─── Mods Section ─────────────────────────────────────────────────────────────
-const NEXUS_GAMES = [
-  { id:'skyrimspecialedition', name:'Skyrim SE', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_1704.jpg', mods:'75,000+', color:'#3a506b' },
-  { id:'cyberpunk2077',        name:'Cyberpunk 2077', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_3333.jpg', mods:'28,000+', color:'#f7b731' },
-  { id:'witcher3',             name:'The Witcher 3', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_952.jpg',  mods:'13,000+', color:'#c0392b' },
-  { id:'fallout4',             name:'Fallout 4', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_1151.jpg', mods:'55,000+', color:'#e67e22' },
-  { id:'baldursgate3',         name:"Baldur's Gate 3", img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_3474.jpg', mods:'12,000+', color:'#6c3483' },
-  { id:'stalker2',             name:'STALKER 2', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_3648.jpg', mods:'3,000+', color:'#2e4053' },
-  { id:'darksouls3',           name:'Dark Souls 3', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_1695.jpg', mods:'5,000+', color:'#922b21' },
-  { id:'minecraft',            name:'Minecraft', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_272.jpg', mods:'6,500+', color:'#1e8449' },
-  { id:'stardewvalley',        name:'Stardew Valley', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_1303.jpg', mods:'10,000+', color:'#2d6a4f' },
-  { id:'dragonsdogma2',        name:"Dragon's Dogma 2", img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_3649.jpg', mods:'4,000+', color:'#784212' },
-  { id:'elden-ring',           name:'Elden Ring', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_3374.jpg', mods:'4,500+', color:'#6e2f1a' },
-  { id:'gtav',                 name:'GTA V', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_867.jpg', mods:'35,000+', color:'#1f618d' },
+const NEXUS_API = 'https://api.nexusmods.com/v1';
+const NEXUS_KEY_STORAGE = 'nexus_api_key';
+const NEXUS_GAMES_LIST = [
+  { domain:'skyrimspecialedition', name:'Skyrim SE',        emoji:'⚔️',  color:'#3a506b' },
+  { domain:'cyberpunk2077',        name:'Cyberpunk 2077',   emoji:'🌆', color:'#e4b343' },
+  { domain:'witcher3',             name:'The Witcher 3',    emoji:'🐺', color:'#c0392b' },
+  { domain:'fallout4',             name:'Fallout 4',        emoji:'☢️', color:'#e67e22' },
+  { domain:'baldursgate3',         name:"Baldur's Gate 3",  emoji:'🧙', color:'#6c3483' },
+  { domain:'stalker2',             name:'STALKER 2',        emoji:'🔫', color:'#2e4053' },
+  { domain:'darksouls3',           name:'Dark Souls 3',     emoji:'🔥', color:'#922b21' },
+  { domain:'minecraft',            name:'Minecraft',        emoji:'⛏️', color:'#1e8449' },
+  { domain:'stardewvalley',        name:'Stardew Valley',   emoji:'🌾', color:'#2d6a4f' },
+  { domain:'dragonsdogma2',        name:"Dragon's Dogma 2", emoji:'🐉', color:'#784212' },
+  { domain:'eldenring',            name:'Elden Ring',       emoji:'🪐', color:'#6e2f1a' },
+  { domain:'gtav',                 name:'GTA V',            emoji:'🚗', color:'#1f618d' },
 ];
-const NEXUS_CATS = [
-  { label:'Más descargados', q:'&sort_by=downloads&period=1w' },
-  { label:'Más recientes',   q:'&sort_by=uploaded_timestamp&order=desc' },
-  { label:'Mejor valorados', q:'&sort_by=endorsements' },
-  { label:'Ver todo',        q:'' },
-];
+
+interface NexusMod { mod_id:number; name:string; summary:string; picture_url:string; author:string; endorsement_count:number; download_count:number; game_id:number; updated_timestamp:number; }
+interface NexusModDetail extends NexusMod { description:string; }
+interface NexusFile { file_id:number; name:string; file_name:string; version:string; description:string; size_kb:number; category_name:string; }
+
 function ModsSection() {
+  const [apiKey, setApiKey] = useState<string>(()=>localStorage.getItem(NEXUS_KEY_STORAGE)||'');
+  const [keyInput, setKeyInput] = useState('');
+  const [validating, setValidating] = useState(false);
+  const [keyError, setKeyError] = useState('');
+  const [userName, setUserName] = useState<string>(()=>localStorage.getItem('nexus_username')||'');
+
+  type Screen = 'setup'|'games'|'mods'|'detail';
+  const [screen, setScreen] = useState<Screen>(apiKey&&userName?'games':'setup');
+  const [selectedGame, setSelectedGame] = useState<typeof NEXUS_GAMES_LIST[0]|null>(null);
+  const [mods, setMods] = useState<NexusMod[]>([]);
+  const [modsLoading, setModsLoading] = useState(false);
+  const [modsError, setModsError] = useState('');
+  const [filter, setFilter] = useState<'trending'|'latest_updated'|'latest_added'>('trending');
   const [search, setSearch] = useState('');
-  const open = (url: string) => window.open(url, '_blank', 'noopener,noreferrer');
-  const searchNexus = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (search.trim()) open(`https://www.nexusmods.com/search/?q=${encodeURIComponent(search.trim())}&game_id=0`);
-  };
-  return (
-    <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column' }}>
-      {/* Header banner */}
-      <div style={{ background:'linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)', padding:'28px 28px 20px', borderBottom:'1px solid rgba(255,255,255,.07)', flexShrink:0 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
-          <div style={{ width:38, height:38, borderRadius:10, background:'linear-gradient(135deg,#da8e35,#c1651a)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🔧</div>
+  const [selectedMod, setSelectedMod] = useState<NexusModDetail|null>(null);
+  const [modFiles, setModFiles] = useState<NexusFile[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  function nexusApiProxy(path: string, key: string) {
+    return `/api/nexus-proxy?url=${encodeURIComponent(`${NEXUS_API}${path}`)}&apikey=${encodeURIComponent(key)}`;
+  }
+
+  async function validateKey(key: string) {
+    setValidating(true); setKeyError('');
+    try {
+      const r = await fetch(nexusApiProxy('/users/validate.json', key));
+      if (!r.ok) { setKeyError('API key inválida. Verifica que sea correcta.'); return; }
+      const data = await r.json() as { name:string; is_premium?:boolean };
+      localStorage.setItem(NEXUS_KEY_STORAGE, key);
+      localStorage.setItem('nexus_username', data.name);
+      setApiKey(key); setUserName(data.name); setScreen('games');
+    } catch { setKeyError('Error de conexión. Intenta de nuevo.'); }
+    finally { setValidating(false); }
+  }
+
+  function logout() { localStorage.removeItem(NEXUS_KEY_STORAGE); localStorage.removeItem('nexus_username'); setApiKey(''); setUserName(''); setScreen('setup'); setKeyInput(''); }
+
+  async function loadMods(game: typeof NEXUS_GAMES_LIST[0], f: typeof filter) {
+    setModsLoading(true); setModsError(''); setMods([]);
+    try {
+      const r = await fetch(nexusApiProxy(`/games/${game.domain}/mods/${f}.json`, apiKey));
+      if (!r.ok) { setModsError('Error cargando mods.'); return; }
+      const data = await r.json() as NexusMod[];
+      setMods(Array.isArray(data) ? data : []);
+    } catch { setModsError('Error de conexión.'); }
+    finally { setModsLoading(false); }
+  }
+
+  async function openMod(mod: NexusMod) {
+    setDetailLoading(true); setSelectedMod(null); setModFiles([]); setScreen('detail');
+    try {
+      const [modR, filesR] = await Promise.all([
+        fetch(nexusApiProxy(`/games/${selectedGame!.domain}/mods/${mod.mod_id}.json`, apiKey)),
+        fetch(nexusApiProxy(`/games/${selectedGame!.domain}/mods/${mod.mod_id}/files.json`, apiKey)),
+      ]);
+      if (modR.ok) setSelectedMod(await modR.json() as NexusModDetail);
+      if (filesR.ok) {
+        const fd = await filesR.json() as { files?: NexusFile[] };
+        setModFiles(Array.isArray(fd) ? fd : (fd.files || []));
+      }
+    } catch {/* ignore */}
+    finally { setDetailLoading(false); }
+  }
+
+  function selectGame(g: typeof NEXUS_GAMES_LIST[0]) {
+    setSelectedGame(g); setFilter('trending'); setSearch(''); setScreen('mods');
+    loadMods(g, 'trending');
+  }
+
+  function changeFilter(f: typeof filter) {
+    setFilter(f); if (selectedGame) loadMods(selectedGame, f);
+  }
+
+  const filteredMods = search.trim() ? mods.filter(m => m.name.toLowerCase().includes(search.toLowerCase())||m.summary.toLowerCase().includes(search.toLowerCase())) : mods;
+
+  // ── SETUP SCREEN ──
+  if (screen === 'setup') return (
+    <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:32, gap:0 }}>
+      <div style={{ width:'100%', maxWidth:480, background:'hsl(230 28% 11%)', borderRadius:16, border:'1px solid hsl(var(--border))', padding:36, display:'flex', flexDirection:'column', gap:20 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:4 }}>
+          <div style={{ width:48, height:48, borderRadius:12, background:'linear-gradient(135deg,#da8e35,#c1651a)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>🔧</div>
           <div>
-            <h2 style={{ margin:0, fontSize:'1.25rem', fontWeight:800, color:'#fff' }}>Mods</h2>
-            <p style={{ margin:0, fontSize:12, color:'rgba(255,255,255,.45)' }}>Impulsado por NexusMods · El repositorio de mods más grande del mundo</p>
+            <h2 style={{ margin:0, fontSize:'1.2rem', fontWeight:800 }}>Mods · NexusMods</h2>
+            <p style={{ margin:'2px 0 0', fontSize:12, color:'hsl(var(--muted-foreground))' }}>Conecta tu cuenta para descargar mods</p>
           </div>
-          <button onClick={()=>open('https://www.nexusmods.com')}
-            style={{ marginLeft:'auto', padding:'8px 16px', borderRadius:8, background:'#da8e35', border:'none', color:'#fff', fontFamily:'inherit', fontSize:13, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
-            <Icon name="external-link" size={13}/> NexusMods.com
+        </div>
+
+        <div style={{ background:'rgba(218,142,53,.08)', border:'1px solid rgba(218,142,53,.2)', borderRadius:10, padding:'12px 14px', fontSize:13, color:'hsl(var(--muted-foreground))', lineHeight:1.6 }}>
+          Necesitas una <strong style={{ color:'#da8e35' }}>API Key de NexusMods</strong> (gratuita). Obtenla en:
+          <br/>
+          <a href="https://www.nexusmods.com/users/myaccount?tab=api" target="_blank" rel="noopener noreferrer"
+            style={{ color:'#da8e35', fontSize:12 }}>
+            nexusmods.com → Mi cuenta → API Key
+          </a>
+        </div>
+
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          <label style={{ fontSize:12, fontWeight:600, color:'hsl(var(--muted-foreground))' }}>API KEY</label>
+          <input value={keyInput} onChange={e=>setKeyInput(e.target.value)}
+            placeholder="Pega tu API Key aquí..."
+            type="password"
+            style={{ padding:'10px 14px', borderRadius:8, background:'rgba(255,255,255,.05)', border:'1px solid hsl(var(--border))', color:'hsl(var(--foreground))', fontFamily:'inherit', fontSize:14, outline:'none' }}/>
+          {keyError && <p style={{ margin:0, fontSize:12, color:'#ef4444' }}>{keyError}</p>}
+          <button onClick={()=>validateKey(keyInput.trim())} disabled={!keyInput.trim()||validating}
+            style={{ padding:'10px', borderRadius:8, background:'#da8e35', border:'none', color:'#fff', fontFamily:'inherit', fontSize:14, fontWeight:700, cursor:'pointer', opacity:(!keyInput.trim()||validating)?0.5:1, marginTop:4 }}>
+            {validating ? 'Verificando...' : 'Conectar cuenta'}
           </button>
         </div>
-        {/* Search */}
-        <form onSubmit={searchNexus} style={{ display:'flex', gap:8 }}>
-          <div style={{ flex:1, position:'relative' }}>
-            <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'rgba(255,255,255,.35)', pointerEvents:'none' }}><Icon name="search" size={15}/></span>
-            <input value={search} onChange={e=>setSearch(e.target.value)}
-              placeholder="Buscar mods en NexusMods..."
-              style={{ width:'100%', boxSizing:'border-box', padding:'10px 12px 10px 36px', borderRadius:8, background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.12)', color:'#fff', fontFamily:'inherit', fontSize:14, outline:'none' }}/>
-          </div>
-          <button type="submit"
-            style={{ padding:'10px 20px', borderRadius:8, background:'#da8e35', border:'none', color:'#fff', fontFamily:'inherit', fontSize:14, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>
-            Buscar
-          </button>
-        </form>
-        {/* Quick filters */}
-        <div style={{ display:'flex', gap:8, marginTop:12, flexWrap:'wrap' }}>
-          {NEXUS_CATS.map(c=>(
-            <button key={c.label} onClick={()=>open(`https://www.nexusmods.com/games${c.q}`)}
-              style={{ padding:'5px 12px', borderRadius:20, background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.7)', fontFamily:'inherit', fontSize:12, cursor:'pointer' }}>
-              {c.label}
+      </div>
+    </div>
+  );
+
+  // ── GAMES SCREEN ──
+  if (screen === 'games') return (
+    <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column' }}>
+      {/* Header */}
+      <div style={{ background:'hsl(230 28% 10%)', borderBottom:'1px solid hsl(var(--border))', padding:'14px 20px', display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
+        <span style={{ fontSize:18 }}>🔧</span>
+        <span style={{ fontWeight:800, fontSize:15 }}>NexusMods</span>
+        <span style={{ fontSize:12, color:'hsl(var(--muted-foreground))', marginLeft:4 }}>· {userName}</span>
+        <button onClick={logout} style={{ marginLeft:'auto', padding:'5px 12px', borderRadius:20, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', color:'#ef4444', fontFamily:'inherit', fontSize:11, cursor:'pointer' }}>Desconectar</button>
+      </div>
+      <div style={{ padding:'20px 24px', flex:1 }}>
+        <h3 style={{ margin:'0 0 16px', fontSize:13, fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', color:'hsl(var(--muted-foreground))' }}>Selecciona un juego</h3>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:12 }}>
+          {NEXUS_GAMES_LIST.map(g=>(
+            <button key={g.domain} onClick={()=>selectGame(g)}
+              style={{ border:'none', borderRadius:12, padding:'20px 14px', background:`${g.color}22`, border:`1px solid ${g.color}44`, cursor:'pointer', textAlign:'left', transition:'all .15s', display:'flex', flexDirection:'column', gap:8 }}
+              onMouseEnter={e=>{e.currentTarget.style.background=`${g.color}44`; e.currentTarget.style.transform='translateY(-2px)';}}
+              onMouseLeave={e=>{e.currentTarget.style.background=`${g.color}22`; e.currentTarget.style.transform='';}}>
+              <span style={{ fontSize:28 }}>{g.emoji}</span>
+              <span style={{ fontWeight:700, fontSize:13, color:'hsl(var(--foreground))', lineHeight:1.2 }}>{g.name}</span>
             </button>
           ))}
         </div>
       </div>
+    </div>
+  );
 
-      {/* Games grid */}
-      <div style={{ padding:'20px 24px', flex:1 }}>
-        <h3 style={{ margin:'0 0 14px', fontSize:14, fontWeight:700, color:'hsl(var(--muted-foreground))', textTransform:'uppercase', letterSpacing:'.08em' }}>Juegos Populares</h3>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))', gap:14 }}>
-          {NEXUS_GAMES.map(g=>(
-            <button key={g.id} onClick={()=>open(`https://www.nexusmods.com/${g.id}/mods`)}
-              style={{ position:'relative', border:'none', borderRadius:12, overflow:'hidden', cursor:'pointer', padding:0, aspectRatio:'16/9', background:g.color, transition:'transform .15s,box-shadow .15s' }}
-              onMouseEnter={e=>(e.currentTarget.style.transform='scale(1.03)',e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.4)')}
-              onMouseLeave={e=>(e.currentTarget.style.transform='',e.currentTarget.style.boxShadow='')}>
-              <img src={g.img} alt={g.name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
-                onError={e=>{ (e.target as HTMLImageElement).style.display='none'; }}/>
-              <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top,rgba(0,0,0,.85) 0%,transparent 55%)', display:'flex', flexDirection:'column', justifyContent:'flex-end', padding:'10px 12px', textAlign:'left' }}>
-                <span style={{ color:'#fff', fontSize:13, fontWeight:700, lineHeight:1.2 }}>{g.name}</span>
-                <span style={{ color:'rgba(255,255,255,.55)', fontSize:11, marginTop:2 }}>{g.mods} mods</span>
-              </div>
+  // ── MODS LIST SCREEN ──
+  if (screen === 'mods') return (
+    <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+      {/* Header */}
+      <div style={{ background:'hsl(230 28% 10%)', borderBottom:'1px solid hsl(var(--border))', padding:'10px 16px', display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
+        <button onClick={()=>setScreen('games')} style={{ width:32,height:32,borderRadius:'50%',border:'none',background:'rgba(255,255,255,.07)',color:'rgba(255,255,255,.7)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
+          <Icon name="chevron-left" size={16}/>
+        </button>
+        <span style={{ fontSize:18 }}>{selectedGame?.emoji}</span>
+        <span style={{ fontWeight:700, fontSize:14 }}>{selectedGame?.name}</span>
+        <div style={{ display:'flex', gap:6, marginLeft:'auto' }}>
+          {(['trending','latest_updated','latest_added'] as const).map(f=>(
+            <button key={f} onClick={()=>changeFilter(f)}
+              style={{ padding:'4px 10px', borderRadius:20, border:`1px solid ${filter===f?'#da8e35':'rgba(255,255,255,.12)'}`, background:filter===f?'rgba(218,142,53,.15)':'transparent', color:filter===f?'#da8e35':'rgba(255,255,255,.6)', fontFamily:'inherit', fontSize:11, cursor:'pointer' }}>
+              {f==='trending'?'Trending':f==='latest_updated'?'Recientes':'Nuevos'}
             </button>
           ))}
         </div>
-
-        {/* Footer note */}
-        <div style={{ marginTop:28, padding:'16px 20px', borderRadius:10, background:'rgba(218,142,53,.08)', border:'1px solid rgba(218,142,53,.18)', display:'flex', alignItems:'center', gap:12 }}>
-          <span style={{ fontSize:'1.5rem', flexShrink:0 }}>ℹ️</span>
-          <p style={{ margin:0, fontSize:13, color:'hsl(var(--muted-foreground))', lineHeight:1.5 }}>
-            Los mods se abren directamente en <strong style={{ color:'#da8e35' }}>NexusMods.com</strong>. Necesitarás una cuenta gratuita para descargar. Los archivos se guardan en tu carpeta de descargas del navegador.
-          </p>
+      </div>
+      {/* Search */}
+      <div style={{ padding:'10px 16px', borderBottom:'1px solid hsl(var(--border))', flexShrink:0 }}>
+        <div style={{ position:'relative' }}>
+          <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'hsl(var(--muted-foreground))', pointerEvents:'none' }}><Icon name="search" size={14}/></span>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Filtrar mods..."
+            style={{ width:'100%', boxSizing:'border-box', padding:'8px 12px 8px 32px', borderRadius:8, background:'rgba(255,255,255,.05)', border:'1px solid hsl(var(--border))', color:'hsl(var(--foreground))', fontFamily:'inherit', fontSize:13, outline:'none' }}/>
         </div>
+      </div>
+      {/* List */}
+      <div style={{ flex:1, overflowY:'auto', padding:16 }}>
+        {modsLoading ? (
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:200, gap:10, color:'hsl(var(--muted-foreground))' }}>
+            <Icon name="loader" size={18}/> Cargando mods...
+          </div>
+        ) : modsError ? (
+          <div style={{ textAlign:'center', padding:32, color:'#ef4444' }}>{modsError}</div>
+        ) : filteredMods.length===0 ? (
+          <div style={{ textAlign:'center', padding:32, color:'hsl(var(--muted-foreground))' }}>No se encontraron mods</div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {filteredMods.map(mod=>(
+              <button key={mod.mod_id} onClick={()=>openMod(mod)}
+                style={{ display:'flex', gap:14, background:'rgba(255,255,255,.03)', border:'1px solid rgba(255,255,255,.06)', borderRadius:10, padding:12, cursor:'pointer', textAlign:'left', transition:'background .15s', alignItems:'flex-start' }}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,.03)'}>
+                {mod.picture_url ? (
+                  <img src={mod.picture_url} alt={mod.name} style={{ width:70, height:52, objectFit:'cover', borderRadius:6, flexShrink:0 }} onError={e=>{(e.target as HTMLImageElement).style.display='none';}}/>
+                ) : (
+                  <div style={{ width:70, height:52, borderRadius:6, background:'rgba(218,142,53,.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:22 }}>{selectedGame?.emoji}</div>
+                )}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:700, fontSize:13, marginBottom:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{mod.name}</div>
+                  <div style={{ fontSize:11, color:'hsl(var(--muted-foreground))', overflow:'hidden', textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', lineHeight:1.4 }}>{mod.summary}</div>
+                  <div style={{ display:'flex', gap:12, marginTop:6 }}>
+                    <span style={{ fontSize:10, color:'rgba(255,255,255,.4)' }}>👍 {(mod.endorsement_count||0).toLocaleString()}</span>
+                    <span style={{ fontSize:10, color:'rgba(255,255,255,.4)' }}>⬇️ {(mod.download_count||0).toLocaleString()}</span>
+                    <span style={{ fontSize:10, color:'rgba(255,255,255,.3)' }}>por {mod.author}</span>
+                  </div>
+                </div>
+                <Icon name="chevron-right" size={14} style={{ color:'rgba(255,255,255,.2)', flexShrink:0, marginTop:4 }}/>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── MOD DETAIL SCREEN ──
+  return (
+    <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+      {/* Header */}
+      <div style={{ background:'hsl(230 28% 10%)', borderBottom:'1px solid hsl(var(--border))', padding:'10px 16px', display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
+        <button onClick={()=>setScreen('mods')} style={{ width:32,height:32,borderRadius:'50%',border:'none',background:'rgba(255,255,255,.07)',color:'rgba(255,255,255,.7)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
+          <Icon name="chevron-left" size={16}/>
+        </button>
+        <span style={{ fontWeight:700, fontSize:13, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{selectedMod?.name||'Cargando...'}</span>
+        {selectedMod && (
+          <a href={`https://www.nexusmods.com/${selectedGame?.domain}/mods/${selectedMod.mod_id}`} target="_blank" rel="noopener noreferrer"
+            style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 12px', borderRadius:20, background:'rgba(218,142,53,.15)', border:'1px solid rgba(218,142,53,.3)', color:'#da8e35', textDecoration:'none', fontSize:12, fontWeight:600, flexShrink:0 }}>
+            <Icon name="external-link" size={11}/> NexusMods
+          </a>
+        )}
+      </div>
+      <div style={{ flex:1, overflowY:'auto' }}>
+        {detailLoading ? (
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:200, gap:10, color:'hsl(var(--muted-foreground))' }}>
+            <Icon name="loader" size={18}/> Cargando detalles...
+          </div>
+        ) : selectedMod ? (
+          <>
+            {selectedMod.picture_url && (
+              <div style={{ height:220, overflow:'hidden', flexShrink:0, position:'relative' }}>
+                <img src={selectedMod.picture_url} alt={selectedMod.name} style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+                <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top,hsl(var(--background)) 0%,transparent 60%)' }}/>
+              </div>
+            )}
+            <div style={{ padding:'16px 20px', display:'flex', flexDirection:'column', gap:16 }}>
+              <div>
+                <h2 style={{ margin:'0 0 4px', fontSize:'1.1rem', fontWeight:800 }}>{selectedMod.name}</h2>
+                <div style={{ display:'flex', gap:14 }}>
+                  <span style={{ fontSize:12, color:'hsl(var(--muted-foreground))' }}>por <strong style={{ color:'hsl(var(--foreground))' }}>{selectedMod.author}</strong></span>
+                  <span style={{ fontSize:12, color:'rgba(255,255,255,.4)' }}>👍 {(selectedMod.endorsement_count||0).toLocaleString()}</span>
+                  <span style={{ fontSize:12, color:'rgba(255,255,255,.4)' }}>⬇️ {(selectedMod.download_count||0).toLocaleString()}</span>
+                </div>
+              </div>
+              <p style={{ margin:0, fontSize:13, color:'hsl(var(--muted-foreground))', lineHeight:1.6 }}>{selectedMod.summary}</p>
+
+              {/* Files */}
+              {modFiles.length > 0 && (
+                <div>
+                  <h3 style={{ margin:'0 0 10px', fontSize:12, fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', color:'hsl(var(--muted-foreground))' }}>Archivos</h3>
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {modFiles.filter(f=>f.category_name!=='OLD_VERSION').map(f=>(
+                      <div key={f.file_id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:8, background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.07)' }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontWeight:600, fontSize:13, marginBottom:2 }}>{f.name}</div>
+                          <div style={{ fontSize:11, color:'hsl(var(--muted-foreground))' }}>v{f.version} · {((f.size_kb||0)/1024).toFixed(1)} MB · {f.category_name}</div>
+                        </div>
+                        <a href={`https://www.nexusmods.com/${selectedGame?.domain}/mods/${selectedMod!.mod_id}?tab=files`}
+                          target="_blank" rel="noopener noreferrer"
+                          style={{ padding:'6px 14px', borderRadius:8, background:'#da8e35', border:'none', color:'#fff', textDecoration:'none', fontSize:12, fontWeight:700, flexShrink:0, display:'flex', alignItems:'center', gap:5 }}>
+                          <Icon name="download" size={12}/> Descargar
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {modFiles.length === 0 && !detailLoading && (
+                <a href={`https://www.nexusmods.com/${selectedGame?.domain}/mods/${selectedMod.mod_id}?tab=files`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'12px', borderRadius:10, background:'#da8e35', border:'none', color:'#fff', textDecoration:'none', fontSize:14, fontWeight:700 }}>
+                  <Icon name="download" size={15}/> Ver archivos y descargar
+                </a>
+              )}
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );
