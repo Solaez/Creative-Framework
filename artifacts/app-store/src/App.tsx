@@ -541,7 +541,7 @@ function Titlebar({ online, onToggle, search, onSearch, onSettings, downloadCoun
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 const CAT_ICONS: Record<string,string> = {
   Inicio:'home', Todos:'grid', Descargas:'download', Programas:'monitor', Drivers:'cpu',
-  Juegos:'gamepad', Desarrollos:'code', Diseño:'pen', Emuladores:'disc', 'Juegos Roms':'folder', Proyectos:'wrench',
+  Juegos:'gamepad', Desarrollos:'code', Diseño:'pen', Emuladores:'disc', 'Juegos Roms':'folder', Proyectos:'wrench', Mods:'package',
 };
 function Sidebar({ active, onSelect }: { active:string; onSelect:(c:string)=>void }) {
   return (
@@ -554,7 +554,7 @@ function Sidebar({ active, onSelect }: { active:string; onSelect:(c:string)=>voi
       <div style={{ fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.08em',color:'hsl(var(--muted-foreground))',padding:'4px 10px 4px' }}>Apps</div>
       {['Todos','Descargas'].map(cat=><SideItem key={cat} cat={cat} active={active} onSelect={onSelect}/>)}
       <div style={{ fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.08em',color:'hsl(var(--muted-foreground))',padding:'12px 10px 4px' }}>Categorías</div>
-      {['Programas','Drivers','Juegos','Desarrollos','Diseño','Emuladores','Juegos Roms','Proyectos'].map(cat=><SideItem key={cat} cat={cat} active={active} onSelect={onSelect}/>)}
+      {['Programas','Drivers','Juegos','Desarrollos','Diseño','Emuladores','Juegos Roms','Proyectos','Mods'].map(cat=><SideItem key={cat} cat={cat} active={active} onSelect={onSelect}/>)}
     </div>
   );
 }
@@ -1161,6 +1161,104 @@ function RomListView({ console: c, onSelectRom, onBack }: { console:Console; onS
   );
 }
 
+// ─── Mods Section ─────────────────────────────────────────────────────────────
+const NEXUS_GAMES = [
+  { id:'skyrimspecialedition', name:'Skyrim SE', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_1704.jpg', mods:'75,000+', color:'#3a506b' },
+  { id:'cyberpunk2077',        name:'Cyberpunk 2077', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_3333.jpg', mods:'28,000+', color:'#f7b731' },
+  { id:'witcher3',             name:'The Witcher 3', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_952.jpg',  mods:'13,000+', color:'#c0392b' },
+  { id:'fallout4',             name:'Fallout 4', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_1151.jpg', mods:'55,000+', color:'#e67e22' },
+  { id:'baldursgate3',         name:"Baldur's Gate 3", img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_3474.jpg', mods:'12,000+', color:'#6c3483' },
+  { id:'stalker2',             name:'STALKER 2', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_3648.jpg', mods:'3,000+', color:'#2e4053' },
+  { id:'darksouls3',           name:'Dark Souls 3', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_1695.jpg', mods:'5,000+', color:'#922b21' },
+  { id:'minecraft',            name:'Minecraft', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_272.jpg', mods:'6,500+', color:'#1e8449' },
+  { id:'stardewvalley',        name:'Stardew Valley', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_1303.jpg', mods:'10,000+', color:'#2d6a4f' },
+  { id:'dragonsdogma2',        name:"Dragon's Dogma 2", img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_3649.jpg', mods:'4,000+', color:'#784212' },
+  { id:'elden-ring',           name:'Elden Ring', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_3374.jpg', mods:'4,500+', color:'#6e2f1a' },
+  { id:'gtav',                 name:'GTA V', img:'https://staticdelivery.nexusmods.com/Images/games/4_3/tile_867.jpg', mods:'35,000+', color:'#1f618d' },
+];
+const NEXUS_CATS = [
+  { label:'Más descargados', q:'&sort_by=downloads&period=1w' },
+  { label:'Más recientes',   q:'&sort_by=uploaded_timestamp&order=desc' },
+  { label:'Mejor valorados', q:'&sort_by=endorsements' },
+  { label:'Ver todo',        q:'' },
+];
+function ModsSection() {
+  const [search, setSearch] = useState('');
+  const open = (url: string) => window.open(url, '_blank', 'noopener,noreferrer');
+  const searchNexus = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (search.trim()) open(`https://www.nexusmods.com/search/?q=${encodeURIComponent(search.trim())}&game_id=0`);
+  };
+  return (
+    <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column' }}>
+      {/* Header banner */}
+      <div style={{ background:'linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)', padding:'28px 28px 20px', borderBottom:'1px solid rgba(255,255,255,.07)', flexShrink:0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
+          <div style={{ width:38, height:38, borderRadius:10, background:'linear-gradient(135deg,#da8e35,#c1651a)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🔧</div>
+          <div>
+            <h2 style={{ margin:0, fontSize:'1.25rem', fontWeight:800, color:'#fff' }}>Mods</h2>
+            <p style={{ margin:0, fontSize:12, color:'rgba(255,255,255,.45)' }}>Impulsado por NexusMods · El repositorio de mods más grande del mundo</p>
+          </div>
+          <button onClick={()=>open('https://www.nexusmods.com')}
+            style={{ marginLeft:'auto', padding:'8px 16px', borderRadius:8, background:'#da8e35', border:'none', color:'#fff', fontFamily:'inherit', fontSize:13, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
+            <Icon name="external-link" size={13}/> NexusMods.com
+          </button>
+        </div>
+        {/* Search */}
+        <form onSubmit={searchNexus} style={{ display:'flex', gap:8 }}>
+          <div style={{ flex:1, position:'relative' }}>
+            <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'rgba(255,255,255,.35)', pointerEvents:'none' }}><Icon name="search" size={15}/></span>
+            <input value={search} onChange={e=>setSearch(e.target.value)}
+              placeholder="Buscar mods en NexusMods..."
+              style={{ width:'100%', boxSizing:'border-box', padding:'10px 12px 10px 36px', borderRadius:8, background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.12)', color:'#fff', fontFamily:'inherit', fontSize:14, outline:'none' }}/>
+          </div>
+          <button type="submit"
+            style={{ padding:'10px 20px', borderRadius:8, background:'#da8e35', border:'none', color:'#fff', fontFamily:'inherit', fontSize:14, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>
+            Buscar
+          </button>
+        </form>
+        {/* Quick filters */}
+        <div style={{ display:'flex', gap:8, marginTop:12, flexWrap:'wrap' }}>
+          {NEXUS_CATS.map(c=>(
+            <button key={c.label} onClick={()=>open(`https://www.nexusmods.com/games${c.q}`)}
+              style={{ padding:'5px 12px', borderRadius:20, background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.7)', fontFamily:'inherit', fontSize:12, cursor:'pointer' }}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Games grid */}
+      <div style={{ padding:'20px 24px', flex:1 }}>
+        <h3 style={{ margin:'0 0 14px', fontSize:14, fontWeight:700, color:'hsl(var(--muted-foreground))', textTransform:'uppercase', letterSpacing:'.08em' }}>Juegos Populares</h3>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))', gap:14 }}>
+          {NEXUS_GAMES.map(g=>(
+            <button key={g.id} onClick={()=>open(`https://www.nexusmods.com/${g.id}/mods`)}
+              style={{ position:'relative', border:'none', borderRadius:12, overflow:'hidden', cursor:'pointer', padding:0, aspectRatio:'16/9', background:g.color, transition:'transform .15s,box-shadow .15s' }}
+              onMouseEnter={e=>(e.currentTarget.style.transform='scale(1.03)',e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.4)')}
+              onMouseLeave={e=>(e.currentTarget.style.transform='',e.currentTarget.style.boxShadow='')}>
+              <img src={g.img} alt={g.name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+                onError={e=>{ (e.target as HTMLImageElement).style.display='none'; }}/>
+              <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top,rgba(0,0,0,.85) 0%,transparent 55%)', display:'flex', flexDirection:'column', justifyContent:'flex-end', padding:'10px 12px', textAlign:'left' }}>
+                <span style={{ color:'#fff', fontSize:13, fontWeight:700, lineHeight:1.2 }}>{g.name}</span>
+                <span style={{ color:'rgba(255,255,255,.55)', fontSize:11, marginTop:2 }}>{g.mods} mods</span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Footer note */}
+        <div style={{ marginTop:28, padding:'16px 20px', borderRadius:10, background:'rgba(218,142,53,.08)', border:'1px solid rgba(218,142,53,.18)', display:'flex', alignItems:'center', gap:12 }}>
+          <span style={{ fontSize:'1.5rem', flexShrink:0 }}>ℹ️</span>
+          <p style={{ margin:0, fontSize:13, color:'hsl(var(--muted-foreground))', lineHeight:1.5 }}>
+            Los mods se abren directamente en <strong style={{ color:'#da8e35' }}>NexusMods.com</strong>. Necesitarás una cuenta gratuita para descargar. Los archivos se guardan en tu carpeta de descargas del navegador.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Juegos Roms Section ──────────────────────────────────────────────────────
 type RomView = { type:'list' }|{ type:'roms'; consoleId:string };
 function JuegosRomsSection({ baseConsoles, customConsoles, romOverrides, extraRoms, hiddenRomIds, onDownloadSaved, onRequireAuth }: { baseConsoles:Console[]|null; customConsoles:Console[]; romOverrides:RomOverrides; extraRoms:ExtraRoms; hiddenRomIds:string[]; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
@@ -1326,6 +1424,8 @@ export default function App() {
               </div>
             ) : activeCategory==='Inicio' && !selectedApp ? (
               <HomeSection apps={apps} onSelectApp={selectApp} onSelectCat={selectCat}/>
+            ) : activeCategory==='Mods' && !selectedApp ? (
+              <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><ModsSection/></div>
             ) : activeCategory==='Juegos Roms' && !selectedApp ? (
               <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column' }}><JuegosRomsSection baseConsoles={baseConsoles} customConsoles={customConsoles} romOverrides={romOverrides} extraRoms={extraRoms} hiddenRomIds={hiddenRomIds} onDownloadSaved={refreshHistory} onRequireAuth={requireAuth}/></div>
             ) : activeCategory==='Descargas' && !selectedApp ? (
