@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import type { App } from "./data/apps";
 import { AdminPanel, loadCustomApps, loadCustomConsoles, loadHiddenAppIds, loadRomOverrides, loadExtraRoms, loadHiddenRomIds } from "./AdminPanel";
 import type { ExtraRoms } from "./AdminPanel";
+import type { DownloadEntry } from "./data/apps";
 type RomOverrides = Record<string, Rom>;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface Rom { id:string;title:string;region:string;size:string;rating:number;year:number;genre:string;players:string;description:string;developer:string;downloadUrl:string;coverUrl:string;screenshots:string[];videoId:string;instructions:string[]; }
+interface Rom { id:string;title:string;region:string;size:string;rating:number;year:number;genre:string;players:string;description:string;developer:string;downloadUrl:string;downloads?:DownloadEntry[];coverUrl:string;screenshots:string[];videoId:string;instructions:string[]; }
 interface Console { id:string;name:string;shortName:string;gradient:string;logoText:string;description:string;emulator:string;fileExtensions:string[];romCount:number;roms:Rom[]; }
 interface RomsData { consoles: Console[] }
 interface AppsData { apps: App[] }
@@ -1031,13 +1032,81 @@ function GamingDetailLayout({ onBack, backLabel, coverEmoji, coverBg, coverUrl, 
 }
 
 // ─── App Detail ───────────────────────────────────────────────────────────────
+// ─── Download Popup ───────────────────────────────────────────────────────────
+const DL_TYPE_META: Record<string,{emoji:string;label:string;color:string}> = {
+  base:     { emoji:'🎮', label:'Juego Base',     color:'#3b82f6' },
+  update:   { emoji:'🔄', label:'Actualización',  color:'#22c55e' },
+  dlc:      { emoji:'🎁', label:'DLC',             color:'#a855f7' },
+  version:  { emoji:'📦', label:'Versión',         color:'#f59e0b' },
+  required: { emoji:'⚙️', label:'Requerido',      color:'#64748b' },
+  other:    { emoji:'⬇️', label:'Descarga',       color:'#94a3b8' },
+};
+function DownloadPopup({ name, entries, accentColor, onClose, onSelect }:{
+  name:string; entries:DownloadEntry[]; accentColor:string;
+  onClose:()=>void; onSelect:(entry:DownloadEntry)=>void;
+}) {
+  return (
+    <div style={{ position:'fixed',inset:0,zIndex:2000,background:'rgba(0,0,0,.65)',backdropFilter:'blur(6px)',display:'flex',alignItems:'flex-end',justifyContent:'center' }}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{ background:'hsl(230 28% 10%)',borderRadius:'20px 20px 0 0',padding:'0 0 env(safe-area-inset-bottom,0)',width:'100%',maxWidth:520,boxShadow:'0 -12px 48px rgba(0,0,0,.7)',border:'1px solid rgba(255,255,255,.08)',borderBottom:'none' }}
+        onClick={e=>e.stopPropagation()}>
+        {/* Handle */}
+        <div style={{ display:'flex',justifyContent:'center',padding:'12px 0 4px' }}>
+          <div style={{ width:40,height:4,borderRadius:2,background:'rgba(255,255,255,.15)' }}/>
+        </div>
+        {/* Header */}
+        <div style={{ padding:'12px 24px 16px',borderBottom:'1px solid rgba(255,255,255,.07)' }}>
+          <div style={{ fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'rgba(255,255,255,.35)',marginBottom:4 }}>Seleccionar descarga</div>
+          <div style={{ fontWeight:800,fontSize:'1.05rem',color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis' }}>{name}</div>
+        </div>
+        {/* Entries */}
+        <div style={{ padding:'12px 16px 28px',display:'flex',flexDirection:'column',gap:8,maxHeight:'60vh',overflowY:'auto' }}>
+          {entries.map((entry,i)=>{
+            const meta = DL_TYPE_META[entry.type||'other']||DL_TYPE_META.other;
+            return (
+              <button key={i} onClick={()=>onSelect(entry)}
+                style={{ display:'flex',alignItems:'center',gap:14,padding:'13px 16px',borderRadius:12,background:'rgba(255,255,255,.05)',border:`1px solid ${meta.color}22`,cursor:'pointer',textAlign:'left',transition:'background .12s',width:'100%' }}
+                onMouseEnter={e=>{e.currentTarget.style.background=`${meta.color}18`;}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,.05)';}}>
+                <div style={{ width:40,height:40,borderRadius:10,background:`${meta.color}22`,border:`1px solid ${meta.color}44`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0 }}>{meta.emoji}</div>
+                <div style={{ flex:1,minWidth:0 }}>
+                  <div style={{ fontWeight:700,fontSize:14,color:'#fff',marginBottom:2 }}>{entry.label}</div>
+                  <div style={{ fontSize:11,color:'rgba(255,255,255,.4)',display:'flex',gap:8,alignItems:'center' }}>
+                    <span style={{ background:`${meta.color}22`,border:`1px solid ${meta.color}33`,borderRadius:4,padding:'1px 6px',color:meta.color,fontWeight:600 }}>{meta.label}</span>
+                    {entry.size && <span>{entry.size}</span>}
+                  </div>
+                </div>
+                <div style={{ width:32,height:32,borderRadius:'50%',background:`${accentColor}22`,border:`1px solid ${accentColor}44`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
+                  <Icon name="download" size={14} style={{ color:accentColor }}/>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppDetailView({ app, onBack, onDownloadSaved, onRequireAuth }: { app:App; onBack:()=>void; onDownloadSaved?:()=>void; onRequireAuth?:()=>boolean }) {
   const [progress, setProgress] = useState(0);
   const [downloading, setDownloading] = useState(false);
-  function handleDownload() {
+  const [showDlPopup, setShowDlPopup] = useState(false);
+
+  const dlEntries: DownloadEntry[] = app.downloads && app.downloads.length > 0
+    ? app.downloads
+    : [{ label:'Descargar', url: app.downloadUrl, size: app.size, type:'version' }];
+
+  function triggerDownload(entry: DownloadEntry) {
+    setShowDlPopup(false);
     if (onRequireAuth && !onRequireAuth()) return;
     setDownloading(true); let p=0;
-    const iv = setInterval(()=>{ p+=Math.random()*18; if(p>=100){ p=100; clearInterval(iv); setTimeout(()=>{ setDownloading(false); setProgress(0); showToast(`${app.name} descargado`,'success'); saveDownloadRecord({ id:`app-${app.id}-${Date.now()}`, name:app.name, icon:app.icon, type:'app', category:app.category, size:app.size, date:new Date().toISOString() }); onDownloadSaved?.(); window.open(app.downloadUrl,'_blank'); },500); } setProgress(Math.min(p,100)); },180);
+    const iv = setInterval(()=>{ p+=Math.random()*18; if(p>=100){ p=100; clearInterval(iv); setTimeout(()=>{ setDownloading(false); setProgress(0); showToast(`${entry.label} descargado`,'success'); saveDownloadRecord({ id:`app-${app.id}-${Date.now()}`, name:app.name, icon:app.icon, type:'app', category:app.category, size:entry.size||app.size, date:new Date().toISOString() }); onDownloadSaved?.(); window.open(entry.url,'_blank'); },500); } setProgress(Math.min(p,100)); },180);
+  }
+  function handleDownload() {
+    if (onRequireAuth && !onRequireAuth()) return;
+    if (app.downloads && app.downloads.length > 0) { setShowDlPopup(true); return; }
+    triggerDownload({ label: app.name, url: app.downloadUrl, size: app.size });
   }
   const mediaItems: MediaItem[] = [
     ...(app.coverUrl?[{type:'screen' as const,label:'Portada',src:app.coverUrl}]:[{type:'cover' as const,label:'Portada',emoji:app.icon}]),
@@ -1057,7 +1126,13 @@ function AppDetailView({ app, onBack, onDownloadSaved, onRequireAuth }: { app:Ap
       </div>
     </div>
   );
-  return <GamingDetailLayout onBack={onBack} backLabel="Volver" coverEmoji={app.icon} coverBg={`linear-gradient(145deg,${app.color}dd,${app.color}55 60%,#0a0a18)`} coverUrl={app.coverUrl} title={app.name} genres={[app.category,...app.tags.slice(0,2)]} description={app.description} platform={app.platform} ratingNum={app.rating} reviews={app.reviews} language={app.language} releaseDate={app.releaseDate} size={app.size} developer={app.developer} publisher={app.publisher} accentColor={app.color} actionLabel="Descargar" actionIcon="download" onAction={handleDownload} actionPending={downloading} actionProgress={progress} mediaItems={mediaItems} extraPanel={extraPanel}/>;
+  const actionLabel = app.downloads && app.downloads.length > 0 ? `Descargar (${app.downloads.length})` : 'Descargar';
+  return (
+    <>
+      <GamingDetailLayout onBack={onBack} backLabel="Volver" coverEmoji={app.icon} coverBg={`linear-gradient(145deg,${app.color}dd,${app.color}55 60%,#0a0a18)`} coverUrl={app.coverUrl} title={app.name} genres={[app.category,...app.tags.slice(0,2)]} description={app.description} platform={app.platform} ratingNum={app.rating} reviews={app.reviews} language={app.language} releaseDate={app.releaseDate} size={app.size} developer={app.developer} publisher={app.publisher} accentColor={app.color} actionLabel={actionLabel} actionIcon="download" onAction={handleDownload} actionPending={downloading} actionProgress={progress} mediaItems={mediaItems} extraPanel={extraPanel}/>
+      {showDlPopup && <DownloadPopup name={app.name} entries={dlEntries} accentColor={app.color} onClose={()=>setShowDlPopup(false)} onSelect={triggerDownload}/>}
+    </>
+  );
 }
 
 // ─── ROM Detail ───────────────────────────────────────────────────────────────
@@ -1066,11 +1141,23 @@ function RomDetailView({ rom, console: c, onBack, onDownloadSaved, onRequireAuth
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [filePath, setFilePath] = useState('');
+  const [showDlPopup, setShowDlPopup] = useState(false);
   const accentColor = '#e8692a';
-  function handleDownload() {
+
+  const dlEntries: DownloadEntry[] = rom.downloads && rom.downloads.length > 0
+    ? rom.downloads
+    : [{ label: rom.title, url: rom.downloadUrl, size: rom.size, type: 'base' }];
+
+  function triggerRomDownload(entry: DownloadEntry) {
+    setShowDlPopup(false);
     if (onRequireAuth && !onRequireAuth()) return;
     setDownloading(true); let p=0;
-    const iv = setInterval(()=>{ p+=Math.random()*12; if(p>=100){ p=100; clearInterval(iv); setTimeout(()=>{ setDownloading(false); setProgress(0); setDownloaded(true); showToast(`${rom.title} descargado`,'success'); saveDownloadRecord({ id:`rom-${rom.id}-${Date.now()}`, name:rom.title, icon:'🎮', type:'rom', category:c.name, size:rom.size, date:new Date().toISOString() }); onDownloadSaved?.(); window.open(rom.downloadUrl,'_blank'); },600); } setProgress(Math.min(p,100)); },200);
+    const iv = setInterval(()=>{ p+=Math.random()*12; if(p>=100){ p=100; clearInterval(iv); setTimeout(()=>{ setDownloading(false); setProgress(0); setDownloaded(true); showToast(`${entry.label} descargado`,'success'); saveDownloadRecord({ id:`rom-${rom.id}-${Date.now()}`, name:rom.title, icon:'🎮', type:'rom', category:c.name, size:entry.size||rom.size, date:new Date().toISOString() }); onDownloadSaved?.(); window.open(entry.url,'_blank'); },600); } setProgress(Math.min(p,100)); },200);
+  }
+  function handleDownload() {
+    if (onRequireAuth && !onRequireAuth()) return;
+    if (rom.downloads && rom.downloads.length > 0) { setShowDlPopup(true); return; }
+    triggerRomDownload({ label: rom.title, url: rom.downloadUrl, size: rom.size, type: 'base' });
   }
   function handleSelectFile() {
     const inp=document.createElement('input'); inp.type='file'; inp.accept=c.fileExtensions.join(',');
@@ -1099,7 +1186,15 @@ function RomDetailView({ rom, console: c, onBack, onDownloadSaved, onRequireAuth
       </div>
     </div>
   );
-  return <GamingDetailLayout onBack={onBack} backLabel="Volver" coverEmoji="🎮" coverBg={`${c.gradient}, #0a0a18`} coverUrl={rom.coverUrl} title={rom.title} genres={[c.name,rom.genre]} description={rom.description} platform={`${c.name} · ${c.emulator}`} ratingNum={rom.rating*2} reviews={Math.floor(rom.rating*680)} language={`${rom.region} · ${rom.players}P`} releaseDate={rom.year.toString()} size={rom.size} developer={rom.developer} publisher={c.name} accentColor={accentColor} actionLabel={downloaded?'Descargar de nuevo':'Descargar ROM'} actionIcon="download" onAction={handleDownload} actionPending={downloading} actionProgress={progress} secondaryLabel={downloaded?`Ejecutar en ${c.emulator}`:undefined} secondaryIcon="run" onSecondary={downloaded?handleExecute:undefined} mediaItems={mediaItems} extraPanel={extraPanel}/>;
+  const romActionLabel = rom.downloads && rom.downloads.length > 0
+    ? (downloaded ? `Descargar de nuevo (${rom.downloads.length})` : `Descargar ROM (${rom.downloads.length})`)
+    : (downloaded ? 'Descargar de nuevo' : 'Descargar ROM');
+  return (
+    <>
+      <GamingDetailLayout onBack={onBack} backLabel="Volver" coverEmoji="🎮" coverBg={`${c.gradient}, #0a0a18`} coverUrl={rom.coverUrl} title={rom.title} genres={[c.name,rom.genre]} description={rom.description} platform={`${c.name} · ${c.emulator}`} ratingNum={rom.rating*2} reviews={Math.floor(rom.rating*680)} language={`${rom.region} · ${rom.players}P`} releaseDate={rom.year.toString()} size={rom.size} developer={rom.developer} publisher={c.name} accentColor={accentColor} actionLabel={romActionLabel} actionIcon="download" onAction={handleDownload} actionPending={downloading} actionProgress={progress} secondaryLabel={downloaded?`Ejecutar en ${c.emulator}`:undefined} secondaryIcon="run" onSecondary={downloaded?handleExecute:undefined} mediaItems={mediaItems} extraPanel={extraPanel}/>
+      {showDlPopup && <DownloadPopup name={rom.title} entries={dlEntries} accentColor={accentColor} onClose={()=>setShowDlPopup(false)} onSelect={triggerRomDownload}/>}
+    </>
+  );
 }
 
 // ─── Console Banner ───────────────────────────────────────────────────────────

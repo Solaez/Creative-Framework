@@ -141,38 +141,4 @@ router.get("/nexus-proxy", async (req: Request, res: Response) => {
   }
 });
 
-// ── NEXUS API (correcta) ────────────────────────────────────────────────────
-router.get("/nexus-api/*", async (req: Request, res: Response) => {
-  const apiKey = req.headers["x-api-key"] as string | undefined;
-
-  if (!apiKey) {
-    res.status(400).json({ error: "Missing API key" });
-    return;
-  }
-
-  const path = req.params[0];
-  const url = `${NEXUS_API_BASE}/${path}`;
-
-  try {
-    const response = await fetch(url, {
-      headers: {
-        apikey: apiKey,
-        "Application-Name": "my-app",
-        "Application-Version": "1.0",
-      },
-    });
-
-    const text = await response.text();
-
-    res.status(response.status);
-    res.setHeader("Content-Type", "application/json");
-    res.send(text);
-  } catch (err) {
-    res.status(500).json({
-      error: "Nexus API error",
-      detail: String(err),
-    });
-  }
-});
-
 export default router;

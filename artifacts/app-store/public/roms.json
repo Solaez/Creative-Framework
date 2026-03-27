@@ -25,6 +25,11 @@
           "description": "Mario viaja por el cosmos saltando entre galaxias y planetas en este épico juego de plataformas en 3D. Con gravedad esférica, controles de movimiento únicos y más de 120 estrellas por recolectar, es uno de los mejores juegos de Wii.",
           "developer": "Nintendo EAD",
           "downloadUrl": "https://archive.org/download/wii-mario-galaxy",
+          "downloads": [
+            { "label": "Juego Base (WBFS)", "url": "https://archive.org/download/wii-mario-galaxy/MarioGalaxy.wbfs", "size": "4.37 GB", "type": "base" },
+            { "label": "Juego Base (ISO)", "url": "https://archive.org/download/wii-mario-galaxy/MarioGalaxy.iso", "size": "4.37 GB", "type": "base" },
+            { "label": "Actualización v1.01", "url": "https://archive.org/download/wii-mario-galaxy-update/update.wad", "size": "38 MB", "type": "update" }
+          ],
           "coverUrl": "https://www.mobygames.com/images/covers/l/135892-super-mario-galaxy-wii-front-cover.jpg",
           "screenshots": [
             "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Super_Mario_Galaxy_-_Nintendo_Wii.jpg/640px-Super_Mario_Galaxy_-_Nintendo_Wii.jpg"

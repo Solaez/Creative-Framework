@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import type { App } from "./data/apps";
+import type { App, DownloadEntry } from "./data/apps";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface Rom { id:string;title:string;region:string;size:string;rating:number;year:number;genre:string;players:string;description:string;developer:string;downloadUrl:string;coverUrl:string;screenshots:string[];videoId:string;instructions:string[]; }
+interface Rom { id:string;title:string;region:string;size:string;rating:number;year:number;genre:string;players:string;description:string;developer:string;downloadUrl:string;downloads?:DownloadEntry[];coverUrl:string;screenshots:string[];videoId:string;instructions:string[]; }
 interface Console { id:string;name:string;shortName:string;gradient:string;logoText:string;description:string;emulator:string;fileExtensions:string[];romCount:number;roms:Rom[]; }
 
 // ─── Storage keys ────────────────────────────────────────────────────────────
@@ -114,6 +114,7 @@ function AppForm({ onSave, onCancel, initialData }: { onSave:(app:App)=>void; on
   const [tagsText, setTagsText] = useState(initialData?.tags?.join(', ') ?? '');
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(initialData?.screenshots?.length ? initialData.screenshots : ['']);
   const [customIconText, setCustomIconText] = useState('');
+  const [dlEntries, setDlEntries] = useState<DownloadEntry[]>(initialData?.downloads ?? []);
   const [step, setStep] = useState(0);
   const isEdit = !!initialData;
 
@@ -129,6 +130,7 @@ function AppForm({ onSave, onCancel, initialData }: { onSave:(app:App)=>void; on
       version: form.version || '1.0',
       size: form.size || '—',
       downloadUrl: form.downloadUrl!,
+      downloads: dlEntries.filter(e=>e.label&&e.url).length > 0 ? dlEntries.filter(e=>e.label&&e.url) : undefined,
       instructions: instructionsText.split('\n').filter(Boolean),
       color: form.color || '#6366f1',
       icon: form.icon || '🚀',
@@ -147,6 +149,10 @@ function AppForm({ onSave, onCancel, initialData }: { onSave:(app:App)=>void; on
     };
     onSave(app);
   }
+
+  function addAppDlEntry() { setDlEntries(p=>[...p,{label:'',url:'',size:'',type:'version' as const}]); }
+  function removeAppDlEntry(i:number) { setDlEntries(p=>p.filter((_,j)=>j!==i)); }
+  function updateAppDlEntry(i:number, k:keyof DownloadEntry, v:string) { setDlEntries(p=>p.map((e,j)=>j===i?{...e,[k]:v}:e)); }
 
   const steps = ['Básico','Detalles','Media','Descarga'];
 
@@ -328,18 +334,43 @@ function AppForm({ onSave, onCancel, initialData }: { onSave:(app:App)=>void; on
 
         {step===3&&(
           <>
-            <Field label="URL de descarga *" hint="Enlace directo al instalador o página oficial">
+            <Field label="URL de descarga principal *" hint="Enlace directo al instalador o página oficial">
               <Input type="url" value={form.downloadUrl} onChange={e=>set('downloadUrl',e.target.value)} placeholder="https://ejemplo.com/descarga"/>
+            </Field>
+            <Field label="Descargas múltiples" hint="Opcional — agrega versiones, paquetes requeridos u otras variantes">
+              <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                {dlEntries.map((entry,i)=>(
+                  <div key={i} style={{ display:'flex',flexDirection:'column',gap:6,padding:'10px 12px',background:'rgba(255,255,255,.04)',borderRadius:'.75rem',border:'1px solid rgba(255,255,255,.1)' }}>
+                    <div style={{ display:'flex',gap:8,alignItems:'center' }}>
+                      <Input value={entry.label} onChange={e=>updateAppDlEntry(i,'label',e.target.value)} placeholder="Nombre (ej: Versión 2022 x64)" style={{ flex:2 }}/>
+                      <select value={entry.type||'version'} onChange={e=>updateAppDlEntry(i,'type',e.target.value)}
+                        style={{ flex:1,background:'hsl(230 22% 18%)',border:'1px solid rgba(255,255,255,.12)',borderRadius:'.5rem',padding:'8px 10px',color:'white',fontSize:12,fontFamily:'inherit',cursor:'pointer' }}>
+                        <option value="version">📦 Versión</option>
+                        <option value="required">⚙️ Requerido</option>
+                        <option value="base">🎮 Base</option>
+                        <option value="update">🔄 Actualización</option>
+                        <option value="dlc">🎁 DLC</option>
+                        <option value="other">⬇️ Otro</option>
+                      </select>
+                      <button onClick={()=>removeAppDlEntry(i)} style={{ width:28,height:28,borderRadius:'50%',background:'rgba(239,68,68,.15)',border:'1px solid rgba(239,68,68,.3)',color:'#f87171',cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>✕</button>
+                    </div>
+                    <Input type="url" value={entry.url} onChange={e=>updateAppDlEntry(i,'url',e.target.value)} placeholder="https://..."/>
+                    <Input value={entry.size||''} onChange={e=>updateAppDlEntry(i,'size',e.target.value)} placeholder="Tamaño (ej: 24 MB)"/>
+                  </div>
+                ))}
+                <button onClick={addAppDlEntry} style={{ background:'rgba(255,255,255,.05)',border:'1px dashed rgba(255,255,255,.15)',borderRadius:'.625rem',padding:'8px',color:'rgba(255,255,255,.5)',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:500 }}>
+                  + Agregar descarga
+                </button>
+              </div>
             </Field>
             <Field label="Instrucciones de instalación" hint="Una instrucción por línea">
               <Textarea value={instructionsText} onChange={e=>setInstructionsText(e.target.value)}
-                placeholder={`Descargar el instalador\nEjecutar como administrador\nSeguir los pasos del asistente`} rows={6}/>
+                placeholder={`Descargar el instalador\nEjecutar como administrador\nSeguir los pasos del asistente`} rows={5}/>
             </Field>
-            {/* Summary card */}
             <div style={{ background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'.875rem',padding:'14px 16px' }}>
               <div style={{ fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'rgba(255,255,255,.3)',marginBottom:10 }}>Resumen</div>
               <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:12 }}>
-                {[['Nombre',form.name||'—'],['Categoría',form.category||'—'],['Versión',form.version||'—'],['Tamaño',form.size||'—'],['Desarrollador',form.developer||'—'],['Rating',`${form.rating}/10`],['Portada',form.coverUrl?'Sí':'No'],['Capturas',`${screenshotUrls.filter(u=>u.trim()).length}`]].map(([k,v])=>(
+                {[['Nombre',form.name||'—'],['Categoría',form.category||'—'],['Versión',form.version||'—'],['Tamaño',form.size||'—'],['Desarrollador',form.developer||'—'],['Rating',`${form.rating}/10`],['Portada',form.coverUrl?'Sí':'No'],['Descargas',dlEntries.filter(e=>e.label&&e.url).length>0?`${dlEntries.filter(e=>e.label&&e.url).length} extras`:'—']].map(([k,v])=>(
                   <div key={k}><span style={{ color:'rgba(255,255,255,.35)' }}>{k}: </span><span style={{ color:'white',fontWeight:500 }}>{v}</span></div>
                 ))}
               </div>
@@ -468,6 +499,7 @@ function RomForm({ console: c, onSave, onCancel, initialData }: { console?:Conso
   const [form, setForm] = useState<Partial<Rom>>(initialData ?? EMPTY_ROM());
   const [instructionsText, setInstructionsText] = useState(initialData?.instructions?.join('\n') ?? '');
   const [screenshotUrls, setScreenshotUrls] = useState<string[]>(initialData?.screenshots?.length ? initialData.screenshots : ['']);
+  const [dlEntries, setDlEntries] = useState<DownloadEntry[]>(initialData?.downloads ?? []);
   const [step, setStep] = useState(0);
   const set = (k: keyof Rom, v: unknown) => setForm(p => ({ ...p, [k]: v }));
   const isEdit = !!initialData;
@@ -486,6 +518,7 @@ function RomForm({ console: c, onSave, onCancel, initialData }: { console?:Conso
       description: form.description || '',
       developer: form.developer || 'Desconocido',
       downloadUrl: form.downloadUrl || '',
+      downloads: dlEntries.filter(e=>e.label&&e.url).length > 0 ? dlEntries.filter(e=>e.label&&e.url) : undefined,
       coverUrl: form.coverUrl || '',
       screenshots: screenshotUrls.filter(u => u.trim() !== ''),
       videoId: form.videoId || '',
@@ -493,6 +526,10 @@ function RomForm({ console: c, onSave, onCancel, initialData }: { console?:Conso
     };
     onSave(rom);
   }
+
+  function addRomDlEntry() { setDlEntries(p=>[...p,{label:'',url:'',size:'',type:'base' as const}]); }
+  function removeRomDlEntry(i:number) { setDlEntries(p=>p.filter((_,j)=>j!==i)); }
+  function updateRomDlEntry(i:number, k:keyof DownloadEntry, v:string) { setDlEntries(p=>p.map((e,j)=>j===i?{...e,[k]:v}:e)); }
 
   const regions = ['USA','EUR','JAP','ESP','MULTI'];
   const genres = ['Acción','Aventura','RPG','Plataformas','Deportes','Lucha','Racing','Puzzle','Estrategia','Terror','Otro'];
@@ -615,17 +652,42 @@ function RomForm({ console: c, onSave, onCancel, initialData }: { console?:Conso
         {/* ── STEP 2: DESCARGA ── */}
         {step===2&&(
           <>
-            <Field label="URL de descarga" hint="Enlace directo al archivo ROM">
+            <Field label="URL de descarga principal" hint="Enlace directo al archivo ROM (juego base)">
               <Input type="url" value={form.downloadUrl||''} onChange={e=>set('downloadUrl',e.target.value)} placeholder="https://archive.org/..."/>
+            </Field>
+            <Field label="Descargas múltiples" hint="Opcional — agrega actualización, DLC, versiones alternativas">
+              <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                {dlEntries.map((entry,i)=>(
+                  <div key={i} style={{ display:'flex',flexDirection:'column',gap:6,padding:'10px 12px',background:'rgba(255,255,255,.04)',borderRadius:'.75rem',border:'1px solid rgba(255,255,255,.1)' }}>
+                    <div style={{ display:'flex',gap:8,alignItems:'center' }}>
+                      <Input value={entry.label} onChange={e=>updateRomDlEntry(i,'label',e.target.value)} placeholder="Nombre (ej: Actualización v1.1)" style={{ flex:2 }}/>
+                      <select value={entry.type||'base'} onChange={e=>updateRomDlEntry(i,'type',e.target.value)}
+                        style={{ flex:1,background:'hsl(230 22% 18%)',border:'1px solid rgba(255,255,255,.12)',borderRadius:'.5rem',padding:'8px 10px',color:'white',fontSize:12,fontFamily:'inherit',cursor:'pointer' }}>
+                        <option value="base">🎮 Juego Base</option>
+                        <option value="update">🔄 Actualización</option>
+                        <option value="dlc">🎁 DLC</option>
+                        <option value="version">📦 Versión</option>
+                        <option value="other">⬇️ Otro</option>
+                      </select>
+                      <button onClick={()=>removeRomDlEntry(i)} style={{ width:28,height:28,borderRadius:'50%',background:'rgba(239,68,68,.15)',border:'1px solid rgba(239,68,68,.3)',color:'#f87171',cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>✕</button>
+                    </div>
+                    <Input type="url" value={entry.url} onChange={e=>updateRomDlEntry(i,'url',e.target.value)} placeholder="https://..."/>
+                    <Input value={entry.size||''} onChange={e=>updateRomDlEntry(i,'size',e.target.value)} placeholder="Tamaño (ej: 4.37 GB)"/>
+                  </div>
+                ))}
+                <button onClick={addRomDlEntry} style={{ background:'rgba(255,255,255,.05)',border:'1px dashed rgba(255,255,255,.15)',borderRadius:'.625rem',padding:'8px',color:'rgba(255,255,255,.5)',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:500 }}>
+                  + Agregar descarga
+                </button>
+              </div>
             </Field>
             <Field label="Instrucciones" hint="Una instrucción por línea">
               <Textarea value={instructionsText} onChange={e=>setInstructionsText(e.target.value)}
-                placeholder={`Descargar el archivo ROM\nAbrir en ${c?.emulator||'el emulador'}\nConfigurar controles`} rows={5}/>
+                placeholder={`Descargar el archivo ROM\nAbrir en ${c?.emulator||'el emulador'}\nConfigurar controles`} rows={4}/>
             </Field>
             <div style={{ background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'.875rem',padding:'14px 16px' }}>
               <div style={{ fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.07em',color:'rgba(255,255,255,.3)',marginBottom:10 }}>Resumen</div>
               <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:12 }}>
-                {[['Título',form.title||'—'],['Género',form.genre||'—'],['Año',String(form.year||'—')],['Región',form.region||'—'],['Portada',form.coverUrl?'✓ Sí':'✗ No'],['Capturas',`${screenshotUrls.filter(u=>u.trim()).length}`],['Video',form.videoId?'✓ Sí':'✗ No'],['Descarga',form.downloadUrl?'✓ Sí':'✗ No']].map(([k,v])=>(
+                {[['Título',form.title||'—'],['Género',form.genre||'—'],['Año',String(form.year||'—')],['Región',form.region||'—'],['Portada',form.coverUrl?'✓ Sí':'✗ No'],['Video',form.videoId?'✓ Sí':'✗ No'],['Descarga',form.downloadUrl?'✓ Sí':'✗ No'],['Extras',dlEntries.filter(e=>e.label&&e.url).length>0?`${dlEntries.filter(e=>e.label&&e.url).length} archivos`:'—']].map(([k,v])=>(
                   <div key={k}><span style={{ color:'rgba(255,255,255,.35)' }}>{k}: </span><span style={{ color:'white',fontWeight:500 }}>{v}</span></div>
                 ))}
               </div>

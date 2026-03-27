@@ -36,6 +36,13 @@
       "version": "2022",
       "size": "48 MB",
       "downloadUrl": "https://aka.ms/vs/17/release/vc_redist.x64.exe",
+      "downloads": [
+        { "label": "Visual C++ 2022 (x64)", "url": "https://aka.ms/vs/17/release/vc_redist.x64.exe", "size": "24 MB", "type": "version" },
+        { "label": "Visual C++ 2022 (x86)", "url": "https://aka.ms/vs/17/release/vc_redist.x86.exe", "size": "13 MB", "type": "version" },
+        { "label": "Visual C++ 2015-2019 (x64)", "url": "https://aka.ms/vs/16/release/vc_redist.x64.exe", "size": "14 MB", "type": "version" },
+        { "label": "Visual C++ 2015-2019 (x86)", "url": "https://aka.ms/vs/16/release/vc_redist.x86.exe", "size": "14 MB", "type": "version" },
+        { "label": "Paquete completo 2005-2022", "url": "https://www.techpowerup.com/download/visual-c-redistributable-runtime-package-all-in-one/", "size": "48 MB", "type": "other" }
+      ],
       "instructions": [
         "Descargar el instalador",
         "Ejecutar como administrador",
@@ -64,6 +71,11 @@
       "version": "12",
       "size": "95 MB",
       "downloadUrl": "https://www.microsoft.com/en-us/download/details.aspx?id=35",
+      "downloads": [
+        { "label": "DirectX 12 (Web Installer)", "url": "https://www.microsoft.com/en-us/download/details.aspx?id=35", "size": "285 KB", "type": "version" },
+        { "label": "DirectX End-User Runtime (Offline)", "url": "https://www.microsoft.com/en-us/download/details.aspx?id=8109", "size": "95 MB", "type": "version" },
+        { "label": "DirectX SDK (Desarrolladores)", "url": "https://www.microsoft.com/en-us/download/details.aspx?id=6812", "size": "572 MB", "type": "other" }
+      ],
       "instructions": [
         "Descargar DirectX End-User Runtime",
         "Ejecutar dxwebsetup.exe",
